@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Link Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .glass-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+        .hidden { display: none !important; }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-6 lg:max-w-7xl lg:mx-auto relative">
+
+    <nav class="flex flex-col md:flex-row justify-between items-center mb-10 pb-5 border-b border-gray-700 gap-4">
+        <h1 class="text-3xl font-extrabold tracking-wider text-blue-400 w-full md:w-auto text-center md:text-left drop-shadow-lg">
+            <i class="fa-solid fa-layer-group"></i> LinkHub
+        </h1>
+        
+        <div class="relative w-full md:w-[28rem] order-3 md:order-none">
+            <input type="text" id="searchInput" placeholder="Search any website or quick link..." class="w-full px-5 py-3 pl-12 rounded-xl bg-gray-800/80 border border-gray-600 focus:outline-none focus:border-blue-400 text-white shadow-inner transition">
+            <i class="fa-solid fa-search absolute left-4 top-4 text-gray-400 text-lg"></i>
+        </div>
+
+        <div class="flex gap-3 w-full md:w-auto justify-center md:justify-end">
+            <button id="addBtn" class="hidden bg-green-500 hover:bg-green-600 text-white px-5 py-2.5 rounded-xl font-medium transition shadow-lg flex items-center gap-2">
+                <i class="fa-solid fa-plus"></i> Add Link
+            </button>
+            <button id="loginBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium transition shadow-lg flex items-center gap-2">
+                <i class="fa-solid fa-user-lock"></i> Login
+            </button>
+            <button id="logoutBtn" class="hidden bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl font-medium transition shadow-lg flex items-center gap-2">
+                <i class="fa-solid fa-right-from-bracket"></i> Logout
+            </button>
+        </div>
+    </nav>
+
+    <div id="linksContainer" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6 relative">
+        <div id="loadingMsg" class="col-span-full flex flex-col items-center justify-center mt-20 text-gray-400">
+            <i class="fa-solid fa-spinner fa-spin text-4xl mb-4 text-blue-500"></i>
+            <p class="text-lg">Loading your workspace...</p>
+        </div>
+    </div>
+
+    <div id="viewModal" class="hidden fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="glass-card rounded-2xl w-full max-w-sm flex flex-col shadow-2xl border border-gray-600 overflow-hidden">
+            <div class="p-5 border-b border-gray-700 flex justify-between items-center bg-gray-800 bg-opacity-90">
+                <div class="flex items-center gap-3">
+                    <img id="viewModalLogo" src="" alt="logo" class="w-10 h-10 object-contain bg-white rounded-lg p-1 shadow">
+                    <h2 id="viewModalTitle" class="text-xl font-bold text-white truncate w-48">Website Name</h2>
+                </div>
+                <button onclick="closeModal('viewModal')" class="text-gray-400 hover:text-red-400 transition bg-gray-700 hover:bg-gray-600 rounded-full w-8 h-8 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-5 overflow-y-auto max-h-[50vh] space-y-3" id="viewModalLinks"></div>
+            <div class="p-4 border-t border-gray-700 bg-gray-900 flex justify-center">
+                <a id="viewModalMainLink" href="#" target="_blank" class="w-full text-center px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition shadow-lg flex justify-center items-center gap-2">
+                    Open Main Website <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div id="loginModal" class="hidden fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="glass-card p-8 rounded-2xl w-full max-w-sm shadow-2xl">
+            <h2 class="text-2xl font-bold mb-6 text-center text-white"><i class="fa-solid fa-shield-halved text-blue-400 mr-2"></i>Admin Login</h2>
+            <input type="email" id="email" placeholder="Email Address" class="w-full mb-4 px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 focus:outline-none focus:border-blue-500 text-white transition">
+            <input type="password" id="password" placeholder="Password" class="w-full mb-6 px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 focus:outline-none focus:border-blue-500 text-white transition">
+            <div class="flex justify-end gap-3">
+                <button onclick="closeModal('loginModal')" class="px-5 py-2.5 rounded-lg bg-gray-700 hover:bg-gray-600 transition font-medium">Cancel</button>
+                <button id="submitLogin" class="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 transition font-medium shadow-lg">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="addModal" class="hidden fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="glass-card rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
+            <div class="p-5 border-b border-gray-700 flex justify-between items-center bg-gray-800 bg-opacity-90 rounded-t-2xl">
+                <h2 id="modalTitle" class="text-xl font-bold text-white flex items-center gap-2"><i class="fa-solid fa-pen-to-square text-blue-400"></i> Add New Website</h2>
+                <button onclick="closeModal('addModal')" class="text-gray-400 hover:text-red-400 transition bg-gray-700 hover:bg-gray-600 rounded-full w-8 h-8 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1 space-y-4">
+                <div>
+                    <label class="block text-sm mb-1 text-gray-400 font-medium">Website Name</label>
+                    <input type="text" id="siteName" class="w-full px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-white focus:outline-none focus:border-blue-500 transition">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1 text-gray-400 font-medium">Main URL</label>
+                    <input type="url" id="siteUrl" class="w-full px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-white focus:outline-none focus:border-blue-500 transition">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1 text-gray-400 font-medium">Logo Image URL</label>
+                    <input type="text" id="siteLogo" class="w-full px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-white focus:outline-none focus:border-blue-500 transition">
+                </div>
+                
+                <div class="pt-3 border-t border-gray-700">
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="block text-sm text-blue-300 font-medium">Direct Quick Links</label>
+                        <button id="addMoreSublinkBtn" type="button" class="text-xs bg-gray-700 hover:bg-blue-600 px-3 py-1.5 rounded-md text-white transition flex items-center shadow">
+                            <i class="fa-solid fa-plus mr-1.5"></i> Add Row
+                        </button>
+                    </div>
+                    <div id="dynamicSublinksContainer" class="space-y-3"></div>
+                </div>
+            </div>
+            
+            <div class="p-5 border-t border-gray-700 bg-gray-800 bg-opacity-90 rounded-b-2xl flex justify-end gap-3">
+                <button onclick="closeModal('addModal')" class="px-5 py-2.5 rounded-lg bg-gray-700 hover:bg-gray-600 transition font-medium">Cancel</button>
+                <button id="saveLinkBtn" class="px-6 py-2.5 rounded-lg bg-green-500 hover:bg-green-400 text-gray-900 transition font-bold shadow-lg flex items-center gap-2">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Save Data
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        // Switched from Firestore to Realtime Database
+        import { getDatabase, ref, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDNqZanl39q1wZdWBozONmtG-aWY-4vgCg",
+            authDomain: "useful-4d6ac.firebaseapp.com",
+            databaseURL: "https://useful-4d6ac-default-rtdb.firebaseio.com",
+            projectId: "useful-4d6ac",
+            storageBucket: "useful-4d6ac.firebasestorage.app",
+            messagingSenderId: "277397818455",
+            appId: "1:277397818455:web:736d9ee493b04c488fa712"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+        
+        let isAdmin = false;
+        let allLinksData = [];
+        let editingId = null;
+
+        const sublinksContainer = document.getElementById('dynamicSublinksContainer');
+        const searchInput = document.getElementById('searchInput');
+
+        window.closeModal = (id) => {
+            document.getElementById(id).classList.add('hidden');
+            document.body.style.overflow = ''; 
+            if(id === 'addModal') editingId = null;
+        }
+        
+        window.openModal = (id) => {
+            document.getElementById(id).classList.remove('hidden');
+            document.body.style.overflow = 'hidden'; 
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            isAdmin = !!user;
+            document.getElementById('loginBtn').classList.toggle('hidden', isAdmin);
+            document.getElementById('logoutBtn').classList.toggle('hidden', !isAdmin);
+            document.getElementById('addBtn').classList.toggle('hidden', !isAdmin);
+            renderLinks();
+        });
+
+        document.getElementById('loginBtn').addEventListener('click', () => openModal('loginModal'));
+        document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+        
+        document.getElementById('submitLogin').addEventListener('click', async () => {
+            try {
+                await signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value);
+                closeModal('loginModal');
+                document.getElementById('email').value = ''; document.getElementById('password').value = '';
+            } catch (error) { alert('Login Failed: ' + error.message); }
+        });
+
+        function createSublinkRow(name = '', url = '') {
+            const row = document.createElement('div');
+            row.className = 'flex gap-2 items-center bg-gray-900/50 p-2 rounded-lg border border-gray-700';
+            row.innerHTML = `
+                <input type="text" placeholder="Name" value="${name}" class="sublink-name w-1/3 px-3 py-2 rounded-md bg-gray-800 border border-gray-600 text-white text-sm focus:border-blue-500 outline-none">
+                <input type="url" placeholder="URL" value="${url}" class="sublink-url flex-1 px-3 py-2 rounded-md bg-gray-800 border border-gray-600 text-white text-sm focus:border-blue-500 outline-none">
+                <button type="button" class="text-gray-400 hover:text-red-400 px-2 transition"><i class="fa-solid fa-trash-can"></i></button>
+            `;
+            row.querySelector('button').addEventListener('click', () => row.remove());
+            sublinksContainer.appendChild(row);
+        }
+
+        document.getElementById('addMoreSublinkBtn').addEventListener('click', () => createSublinkRow());
+
+        document.getElementById('addBtn').addEventListener('click', () => {
+            editingId = null;
+            document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-400"></i> Add New Website';
+            document.getElementById('siteName').value = '';
+            document.getElementById('siteUrl').value = '';
+            document.getElementById('siteLogo').value = '';
+            sublinksContainer.innerHTML = '';
+            createSublinkRow();
+            openModal('addModal');
+        });
+
+        window.editLink = (id) => {
+            const item = allLinksData.find(link => link.id === id);
+            if(item) {
+                editingId = id;
+                document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-400"></i> Edit Website';
+                document.getElementById('siteName').value = item.name;
+                document.getElementById('siteUrl').value = item.mainUrl;
+                document.getElementById('siteLogo').value = item.logo;
+                sublinksContainer.innerHTML = '';
+                if(item.sublinks && item.sublinks.length > 0) {
+                    item.sublinks.forEach(link => createSublinkRow(link.name, link.url));
+                } else { createSublinkRow(); }
+                openModal('addModal');
+            }
+        };
+
+        // Realtime Database Save Logic
+        document.getElementById('saveLinkBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('saveLinkBtn');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+            btn.disabled = true;
+
+            const name = document.getElementById('siteName').value.trim();
+            const url = document.getElementById('siteUrl').value.trim();
+            const logo = document.getElementById('siteLogo').value.trim();
+            
+            if(!name || !url) {
+                alert("Website Name and Main URL are required!");
+                btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Save Data';
+                btn.disabled = false;
+                return;
+            }
+
+            let sublinks = [];
+            const rows = sublinksContainer.children;
+            for(let i = 0; i < rows.length; i++) {
+                const subName = rows[i].querySelector('.sublink-name').value.trim();
+                const subUrl = rows[i].querySelector('.sublink-url').value.trim();
+                if(subName && subUrl) sublinks.push({ name: subName, url: subUrl });
+            }
+
+            try {
+                if(editingId) {
+                    await update(ref(db, 'websites/' + editingId), { name, mainUrl: url, logo, sublinks });
+                } else {
+                    await push(ref(db, 'websites'), { name, mainUrl: url, logo, sublinks, createdAt: Date.now() });
+                }
+                closeModal('addModal');
+            } catch (error) { 
+                console.error(error);
+                alert("Data Save Failed! Error: " + error.message); 
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Save Data';
+                btn.disabled = false;
+            }
+        });
+
+        // Realtime Database Delete Logic
+        window.deleteLink = async (id) => {
+            if(confirm('Delete this website permanently?')) {
+                await remove(ref(db, 'websites/' + id));
+            }
+        };
+
+        window.openViewModal = (id) => {
+            const data = allLinksData.find(d => d.id === id);
+            if(!data) return;
+            
+            document.getElementById('viewModalTitle').innerText = data.name;
+            document.getElementById('viewModalLogo').src = data.logo || 'https://via.placeholder.com/64?text=Link';
+            document.getElementById('viewModalMainLink').href = data.mainUrl;
+            
+            const linksContainer = document.getElementById('viewModalLinks');
+            linksContainer.innerHTML = '';
+            
+            if(data.sublinks && data.sublinks.length > 0) {
+                data.sublinks.forEach(link => {
+                    linksContainer.innerHTML += `
+                        <a href="${link.url}" target="_blank" class="flex items-center justify-between p-3.5 bg-gray-900/80 hover:bg-gray-700 border border-gray-600 rounded-xl transition group">
+                            <span class="font-medium text-blue-100 flex items-center gap-2">
+                                <i class="fa-solid fa-link text-gray-500 text-sm"></i> ${link.name}
+                            </span>
+                            <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-blue-400 transition transform group-hover:translate-x-1"></i>
+                        </a>
+                    `;
+                });
+            } else {
+                linksContainer.innerHTML = '<p class="text-gray-500 text-center py-6">No direct links added.</p>';
+            }
+            openModal('viewModal');
+        };
+
+        // Realtime Database Fetch Logic
+        onValue(ref(db, 'websites'), (snapshot) => {
+            allLinksData = [];
+            const data = snapshot.val();
+            if(data) {
+                Object.keys(data).forEach(key => {
+                    allLinksData.push({ id: key, ...data[key] });
+                });
+            }
+            renderLinks();
+        }, (error) => {
+            console.error("Database Error: ", error);
+            document.getElementById('linksContainer').innerHTML = `<p class="col-span-full text-center text-red-400 mt-10">Database Access Denied! Check rules.</p>`;
+        });
+
+        searchInput.addEventListener('input', renderLinks);
+
+        function renderLinks() {
+            const query = searchInput.value.toLowerCase();
+            const container = document.getElementById('linksContainer');
+            container.innerHTML = '';
+            
+            const filteredData = allLinksData.filter(data => {
+                if(data.name.toLowerCase().includes(query)) return true;
+                if(data.sublinks) { return data.sublinks.some(sub => sub.name.toLowerCase().includes(query)); }
+                return false;
+            });
+
+            if(allLinksData.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full flex flex-col items-center justify-center mt-20 text-gray-400">
+                        <i class="fa-solid fa-box-open text-6xl mb-4 text-gray-600 drop-shadow-lg"></i>
+                        <p class="text-xl">Your Hub is empty.</p>
+                    </div>`;
+                return;
+            }
+
+            if(filteredData.length === 0) {
+                container.innerHTML = `<p class="col-span-full text-center mt-10 text-gray-400">No matching links found.</p>`;
+                return;
+            }
+            
+            filteredData.forEach(data => {
+                const card = document.createElement('div');
+                card.className = 'glass-card rounded-2xl p-4 flex flex-col relative group h-full cursor-pointer hover:border-blue-500/50';
+                
+                card.onclick = (e) => {
+                    if(!e.target.closest('.admin-btns')) { openViewModal(data.id); }
+                };
+
+                card.innerHTML = `
+                    ${isAdmin ? `
+                    <div class="admin-btns absolute top-2 right-2 flex gap-1.5 bg-gray-900/90 px-2 py-1.5 rounded-lg opacity-100 lg:opacity-0 group-hover:opacity-100 transition z-10 shadow">
+                        <button onclick="editLink('${data.id}')" class="text-blue-400 hover:bg-gray-800 p-1.5 rounded transition"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteLink('${data.id}')" class="text-red-500 hover:bg-gray-800 p-1.5 rounded transition"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="flex flex-col items-center mb-3 mt-4">
+                        <div class="w-16 h-16 md:w-20 md:h-20 mb-3 bg-white/90 rounded-2xl shadow-xl flex items-center justify-center p-2.5 overflow-hidden transition transform group-hover:scale-110">
+                            <img src="${data.logo || 'https://via.placeholder.com/64?text=Link'}" alt="${data.name}" class="w-full h-full object-contain drop-shadow-md">
+                        </div>
+                        <h3 class="text-lg md:text-xl font-bold text-center text-white truncate w-full px-1">${data.name}</h3>
+                    </div>
+                    
+                    <div class="mt-auto pt-4 border-t border-gray-600/30">
+                        <div class="w-full text-center text-sm text-blue-300 font-medium py-2 rounded-lg bg-gray-800/50 group-hover:bg-blue-600 group-hover:text-white transition flex justify-center items-center gap-2">
+                            Open Links <i class="fa-solid fa-arrow-pointer"></i>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
