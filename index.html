@@ -6,7 +6,6 @@
     <title>My Link Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/6994/6994770.png" type="image/gif" sizes="60x60">
     
     <style>
         body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -136,7 +135,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        // Switched from Firestore to Realtime Database
         import { getDatabase, ref, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
         const firebaseConfig = {
@@ -231,7 +229,19 @@
             }
         };
 
-        // Realtime Database Save Logic
+        // ADMIN ONLY: Toggle Star Logic
+        window.toggleStar = async (id) => {
+            const item = allLinksData.find(link => link.id === id);
+            if(item) {
+                try {
+                    await update(ref(db, 'websites/' + id), { isStarred: !item.isStarred });
+                } catch(error) {
+                    alert("Error updating star status: " + error.message);
+                }
+            }
+        };
+
+        // Save Logic (Preserve isStarred status)
         document.getElementById('saveLinkBtn').addEventListener('click', async () => {
             const btn = document.getElementById('saveLinkBtn');
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
@@ -258,9 +268,12 @@
 
             try {
                 if(editingId) {
-                    await update(ref(db, 'websites/' + editingId), { name, mainUrl: url, logo, sublinks });
+                    // Find existing star status to prevent overwriting it to false
+                    const existingItem = allLinksData.find(item => item.id === editingId);
+                    const isStarred = existingItem ? !!existingItem.isStarred : false;
+                    await update(ref(db, 'websites/' + editingId), { name, mainUrl: url, logo, sublinks, isStarred });
                 } else {
-                    await push(ref(db, 'websites'), { name, mainUrl: url, logo, sublinks, createdAt: Date.now() });
+                    await push(ref(db, 'websites'), { name, mainUrl: url, logo, sublinks, isStarred: false, createdAt: Date.now() });
                 }
                 closeModal('addModal');
             } catch (error) { 
@@ -272,7 +285,6 @@
             }
         });
 
-        // Realtime Database Delete Logic
         window.deleteLink = async (id) => {
             if(confirm('Delete this website permanently?')) {
                 await remove(ref(db, 'websites/' + id));
@@ -307,7 +319,6 @@
             openModal('viewModal');
         };
 
-        // Realtime Database Fetch Logic
         onValue(ref(db, 'websites'), (snapshot) => {
             allLinksData = [];
             const data = snapshot.val();
@@ -329,10 +340,18 @@
             const container = document.getElementById('linksContainer');
             container.innerHTML = '';
             
-            const filteredData = allLinksData.filter(data => {
+            // 1. Filter Data First
+            let filteredData = allLinksData.filter(data => {
                 if(data.name.toLowerCase().includes(query)) return true;
                 if(data.sublinks) { return data.sublinks.some(sub => sub.name.toLowerCase().includes(query)); }
                 return false;
+            });
+
+            // 2. Sort Data (Starred links at the top)
+            filteredData.sort((a, b) => {
+                const starA = a.isStarred ? 1 : 0;
+                const starB = b.isStarred ? 1 : 0;
+                return starB - starA; // Sorts descending (1 comes before 0)
             });
 
             if(allLinksData.length === 0) {
@@ -351,17 +370,26 @@
             
             filteredData.forEach(data => {
                 const card = document.createElement('div');
-                card.className = 'glass-card rounded-2xl p-4 flex flex-col relative group h-full cursor-pointer hover:border-blue-500/50';
+                // Added distinct styling class if starred for a slight visual pop (optional, keeping it clean here)
+                card.className = `glass-card rounded-2xl p-4 flex flex-col relative group h-full cursor-pointer hover:border-blue-500/50 ${data.isStarred ? 'border-yellow-500/30' : ''}`;
                 
                 card.onclick = (e) => {
                     if(!e.target.closest('.admin-btns')) { openViewModal(data.id); }
                 };
 
+                // Added logic for public star display and admin star toggle button
                 card.innerHTML = `
+                    
+                    ${data.isStarred ? `
+                    <div class="absolute top-3 left-3 text-yellow-400 text-lg drop-shadow-[0_0_8px_rgba(250,204,21,0.6)] z-10" title="Starred Link">
+                        <i class="fa-solid fa-star"></i>
+                    </div>` : ''}
+
                     ${isAdmin ? `
                     <div class="admin-btns absolute top-2 right-2 flex gap-1.5 bg-gray-900/90 px-2 py-1.5 rounded-lg opacity-100 lg:opacity-0 group-hover:opacity-100 transition z-10 shadow">
-                        <button onclick="editLink('${data.id}')" class="text-blue-400 hover:bg-gray-800 p-1.5 rounded transition"><i class="fa-solid fa-pen"></i></button>
-                        <button onclick="deleteLink('${data.id}')" class="text-red-500 hover:bg-gray-800 p-1.5 rounded transition"><i class="fa-solid fa-trash"></i></button>
+                        <button onclick="toggleStar('${data.id}')" class="${data.isStarred ? 'text-yellow-400 hover:text-yellow-300' : 'text-gray-400 hover:text-yellow-400'} hover:bg-gray-800 p-1.5 rounded transition" title="${data.isStarred ? 'Unstar' : 'Star'}"><i class="fa-solid fa-star"></i></button>
+                        <button onclick="editLink('${data.id}')" class="text-blue-400 hover:bg-gray-800 p-1.5 rounded transition" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteLink('${data.id}')" class="text-red-500 hover:bg-gray-800 p-1.5 rounded transition" title="Delete"><i class="fa-solid fa-trash"></i></button>
                     </div>
                     ` : ''}
                     
