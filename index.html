@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Link Hub</title>
+    
+    <link rel="preconnect" href="https://useful-4d6ac-default-rtdb.firebaseio.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/6994/6994770.png" type="image/gif" sizes="60x60">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/6994/6994770.png" type="image/gif" sizes="60x60">
     
     <style>
         body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -60,7 +63,6 @@
 
     <div id="viewModal" class="hidden fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div class="glass-card rounded-2xl w-full max-w-sm flex flex-col shadow-2xl border border-gray-600 overflow-hidden relative">
-            
             <div id="modalMaintenanceBadge" class="hidden absolute top-0 left-0 w-full bg-red-600 text-white text-xs text-center py-1 font-bold tracking-widest z-10 animate-pulse">
                 <i class="fa-solid fa-server"></i> SERVER MAINTENANCE
             </div>
@@ -115,7 +117,7 @@
                 </div>
                 <div>
                     <label class="block text-sm mb-1 text-gray-400 font-medium">Logo Image URL</label>
-                    <input type="text" id="siteLogo" class="w-full px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-white focus:outline-none focus:border-blue-500 transition" placeholder="Leaves empty to auto-generate">
+                    <input type="text" id="siteLogo" class="w-full px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-white focus:outline-none focus:border-blue-500 transition">
                 </div>
                 
                 <div class="pt-3 border-t border-gray-700">
@@ -163,6 +165,7 @@
 
         const sublinksContainer = document.getElementById('dynamicSublinksContainer');
         const searchInput = document.getElementById('searchInput');
+        const loadingMsg = document.getElementById('loadingMsg');
 
         window.closeModal = (id) => {
             document.getElementById(id).classList.add('hidden');
@@ -175,16 +178,10 @@
             document.body.style.overflow = 'hidden'; 
         }
 
-        // --- NEW MAINTENANCE LOGIC ---
-        // Global function to handle broken images
         window.handleImageError = (imgElement, cardId) => {
-            // Stop infinite loop if fallback image also fails
             imgElement.onerror = null; 
-            
-            // Set a generic "offline" red icon
             imgElement.src = 'https://ui-avatars.com/api/?name=Offline&background=ef4444&color=fff&size=64';
             
-            // Find the badge container and display the maintenance badge
             const badgeDiv = document.getElementById(`status-${cardId}`);
             if(badgeDiv) {
                 badgeDiv.innerHTML = `
@@ -192,15 +189,10 @@
                         <i class="fa-solid fa-triangle-exclamation"></i> Maintenance
                     </div>`;
             }
-            
-            // Dim the card slightly to indicate it's offline
             const cardWrapper = document.getElementById(`card-wrapper-${cardId}`);
-            if(cardWrapper) {
-                cardWrapper.classList.add('grayscale', 'opacity-80');
-            }
+            if(cardWrapper) cardWrapper.classList.add('grayscale', 'opacity-80');
         };
 
-        // Modal logo error handler
         document.getElementById('viewModalLogo').onerror = function() {
             this.onerror = null;
             this.src = 'https://ui-avatars.com/api/?name=Offline&background=ef4444&color=fff&size=64';
@@ -272,9 +264,7 @@
             if(item) {
                 try {
                     await update(ref(db, 'websites/' + id), { isStarred: !item.isStarred });
-                } catch(error) {
-                    alert("Error updating star status: " + error.message);
-                }
+                } catch(error) { alert("Error updating star status: " + error.message); }
             }
         };
 
@@ -311,10 +301,8 @@
                     await push(ref(db, 'websites'), { name, mainUrl: url, logo, sublinks, isStarred: false, createdAt: Date.now() });
                 }
                 closeModal('addModal');
-            } catch (error) { 
-                console.error(error);
-                alert("Data Save Failed! Error: " + error.message); 
-            } finally {
+            } catch (error) { alert("Data Save Failed! Error: " + error.message); } 
+            finally {
                 btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Save Data';
                 btn.disabled = false;
             }
@@ -330,9 +318,7 @@
             const data = allLinksData.find(d => d.id === id);
             if(!data) return;
             
-            // Reset modal maintenance badge
             document.getElementById('modalMaintenanceBadge').classList.add('hidden');
-            
             document.getElementById('viewModalTitle').innerText = data.name;
             document.getElementById('viewModalLogo').src = data.logo || 'https://via.placeholder.com/64?text=Link';
             document.getElementById('viewModalMainLink').href = data.mainUrl;
@@ -357,7 +343,19 @@
             openModal('viewModal');
         };
 
+        // --- NEW: CACHING LOGIC (Offline First) ---
+        
+        // 1. Pehle LocalStorage se data check karo (Instantly Load karne ke liye)
+        const cachedData = localStorage.getItem('myLinkHubCache');
+        if (cachedData) {
+            allLinksData = JSON.parse(cachedData);
+            loadingMsg.classList.add('hidden'); // Cache milte hi loading chhupa do
+            renderLinks();
+        }
+
+        // 2. Background mein Firebase se connect karo aur naya data laao
         onValue(ref(db, 'websites'), (snapshot) => {
+            loadingMsg.classList.add('hidden'); // Firebase se aate hi loading chhupa do
             allLinksData = [];
             const data = snapshot.val();
             if(data) {
@@ -365,10 +363,16 @@
                     allLinksData.push({ id: key, ...data[key] });
                 });
             }
-            renderLinks();
+            
+            // Naye data ko LocalStorage mein save kar lo agli baar ke liye
+            localStorage.setItem('myLinkHubCache', JSON.stringify(allLinksData));
+            renderLinks(); // Naya data render karo
+            
         }, (error) => {
             console.error("Database Error: ", error);
-            document.getElementById('linksContainer').innerHTML = `<p class="col-span-full text-center text-red-400 mt-10">Database Access Denied! Check rules.</p>`;
+            if(allLinksData.length === 0) {
+                document.getElementById('linksContainer').innerHTML = `<p class="col-span-full text-center text-red-400 mt-10">Database Access Denied or Offline! Check connection.</p>`;
+            }
         });
 
         searchInput.addEventListener('input', renderLinks);
@@ -433,6 +437,7 @@
                         <div class="w-16 h-16 md:w-20 md:h-20 mb-3 bg-white/90 rounded-2xl shadow-xl flex items-center justify-center p-2.5 overflow-hidden transition transform group-hover:scale-110">
                             <img src="${data.logo || 'https://via.placeholder.com/64?text=Link'}" 
                                  alt="${data.name}" 
+                                 loading="lazy" 
                                  onerror="handleImageError(this, '${data.id}')"
                                  class="w-full h-full object-contain drop-shadow-md">
                         </div>
