@@ -1,531 +1,1166 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Link Hub</title>
-    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/6994/6994770.png" type="image/gif" sizes="60x60">
+    <meta name="description" content="My personal link hub - all important websites in one place">
+    <meta name="theme-color" content="#0f172a">
+
+    <!-- PWA Manifest inline -->
+    <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;LinkHub&quot;,&quot;short_name&quot;:&quot;LinkHub&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%230f172a&quot;,&quot;theme_color&quot;:&quot;%230f172a&quot;,&quot;icons&quot;:[{&quot;src&quot;:&quot;https://cdn-icons-png.flaticon.com/512/6994/6994770.png&quot;,&quot;sizes&quot;:&quot;512x512&quot;,&quot;type&quot;:&quot;image/png&quot;}]}">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/6994/6994770.png">
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/6994/6994770.png" sizes="60x60">
+
     <link rel="preconnect" href="https://useful-4d6ac-default-rtdb.firebaseio.com">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+    <!-- Chart.js for Analytics -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
     <style>
-        body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        /* ===== THEME VARIABLES ===== */
+        :root[data-theme="dark"] {
+            --bg:#0f172a; --bg2:#1e293b; --bg3:#334155;
+            --card:rgba(30,41,59,0.7); --border:rgba(255,255,255,0.1);
+            --text:#f8fafc; --text2:#94a3b8;
+            --input-bg:#0f172a; --input-border:#475569;
+            --nav-border:#374151; --scrollbar:#475569;
+            --modal-bg:rgba(0,0,0,0.85);
+            --section-bg:rgba(255,255,255,0.03);
+        }
+        :root[data-theme="light"] {
+            --bg:#f1f5f9; --bg2:#ffffff; --bg3:#e2e8f0;
+            --card:rgba(255,255,255,0.85); --border:rgba(0,0,0,0.1);
+            --text:#0f172a; --text2:#475569;
+            --input-bg:#f8fafc; --input-border:#cbd5e1;
+            --nav-border:#e2e8f0; --scrollbar:#94a3b8;
+            --modal-bg:rgba(0,0,0,0.6);
+            --section-bg:rgba(0,0,0,0.03);
+        }
+
+        body { background-color:var(--bg); color:var(--text); font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; transition:background-color 0.3s,color 0.3s; }
+
         .glass-card {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
-            cursor: pointer;
+            background:var(--card); backdrop-filter:blur(12px);
+            border:1px solid var(--border);
+            box-shadow:0 4px 30px rgba(0,0,0,0.1);
+            transition:transform 0.2s,box-shadow 0.2s,border-color 0.2s;
+            cursor:pointer;
         }
-        @media (min-width: 1024px) {
-            .glass-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+        @media(min-width:1024px){ .glass-card:hover{ transform:translateY(-5px); box-shadow:0 10px 30px rgba(0,0,0,0.3); } }
+
+        .hidden{ display:none !important; }
+        .scrollbar-hide::-webkit-scrollbar{ display:none; }
+        .scrollbar-hide{ -ms-overflow-style:none; scrollbar-width:none; }
+        ::-webkit-scrollbar{ width:4px; }
+        ::-webkit-scrollbar-track{ background:transparent; }
+        ::-webkit-scrollbar-thumb{ background:var(--scrollbar); border-radius:10px; }
+
+        .theme-input{ background:var(--input-bg)!important; border-color:var(--input-border)!important; color:var(--text)!important; }
+        .theme-input::placeholder{ color:var(--text2); }
+        .theme-input:focus{ border-color:#3b82f6!important; }
+
+        /* ===== TOAST ===== */
+        #toastContainer{ position:fixed; bottom:1.5rem; right:1.5rem; z-index:9999; display:flex; flex-direction:column; gap:0.5rem; pointer-events:none; }
+        .toast{ display:flex; align-items:center; gap:0.75rem; padding:0.75rem 1.25rem; border-radius:0.75rem; font-size:0.9rem; font-weight:500; color:white; box-shadow:0 8px 24px rgba(0,0,0,0.4); animation:slideIn 0.3s ease,fadeOut 0.4s ease 2.6s forwards; pointer-events:all; max-width:320px; }
+        .toast.success{ background:#16a34a; } .toast.error{ background:#dc2626; } .toast.info{ background:#2563eb; } .toast.warning{ background:#d97706; }
+        @keyframes slideIn{ from{opacity:0;transform:translateX(60px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes fadeOut{ from{opacity:1} to{opacity:0;transform:translateX(60px)} }
+
+        /* ===== DRAG & DROP ===== */
+        .drag-over{ border:2px dashed #3b82f6!important; opacity:0.7; transform:scale(0.98); }
+        .dragging{ opacity:0.4; transform:scale(0.95); }
+
+        /* ===== CLICK BADGE ===== */
+        .click-badge{ position:absolute; top:6px; right:6px; background:rgba(59,130,246,0.15); border:1px solid rgba(59,130,246,0.3); color:#93c5fd; font-size:10px; padding:2px 6px; border-radius:999px; font-weight:600; z-index:5; }
+
+        /* ===== THEME TOGGLE ===== */
+        .theme-btn{ background:var(--bg3); border:1px solid var(--border); color:var(--text); transition:all 0.2s; }
+        .theme-btn:hover{ opacity:0.8; }
+        .nav-border{ border-color:var(--nav-border); }
+        .modal-overlay{ background:var(--modal-bg)!important; }
+
+        @keyframes pulse{ 0%,100%{opacity:0.5} 50%{opacity:1} }
+
+        /* ===== DESCRIPTION ===== */
+        .desc-text{ color:var(--text2); font-size:0.72rem; line-height:1.3; text-align:center; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+
+        /* ===== SEARCH HINT ===== */
+        .search-hint{ position:absolute; right:12px; top:50%; transform:translateY(-50%); background:var(--bg3); border:1px solid var(--border); color:var(--text2); font-size:11px; padding:2px 7px; border-radius:5px; pointer-events:none; transition:opacity 0.2s; }
+
+        /* ===== PRIVATE LOCK BADGE ===== */
+        .private-badge{ position:absolute; top:0; left:0; right:0; background:rgba(239,68,68,0.15); border-bottom:1px solid rgba(239,68,68,0.3); color:#fca5a5; font-size:9px; text-align:center; padding:2px 0; font-weight:700; letter-spacing:0.05em; border-radius:1rem 1rem 0 0; }
+
+        /* ===== PIN BADGE ===== */
+        .pin-badge{ position:absolute; top:-4px; left:50%; transform:translateX(-50%); background:#7c3aed; color:white; font-size:9px; padding:1px 8px; border-radius:999px; font-weight:700; z-index:20; white-space:nowrap; }
+
+        /* ===== CUSTOM CARD COLOR ===== */
+        .card-color-dot{ width:12px; height:12px; border-radius:50%; display:inline-block; border:2px solid rgba(255,255,255,0.3); }
+
+        /* ===== LINK PREVIEW TOOLTIP ===== */
+        .link-preview-tooltip{
+            position:absolute; bottom:calc(100% + 12px); left:50%; transform:translateX(-50%);
+            background:var(--bg2); border:1px solid var(--border);
+            border-radius:12px; padding:10px; width:220px;
+            box-shadow:0 12px 40px rgba(0,0,0,0.5);
+            z-index:100; pointer-events:none;
+            opacity:0; transition:opacity 0.2s;
+            font-size:12px;
         }
-        .hidden { display: none !important; }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        .link-preview-tooltip.show{ opacity:1; }
+        .link-preview-img{ width:100%; height:80px; object-fit:cover; border-radius:8px; background:var(--bg3); margin-bottom:6px; }
+
+        /* ===== RECENTLY ADDED SECTION ===== */
+        .section-label{ font-size:0.7rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text2); margin-bottom:0.5rem; display:flex; align-items:center; gap:6px; }
+        .recently-section{ background:var(--section-bg); border:1px solid var(--border); border-radius:1rem; padding:1rem; margin-bottom:1.5rem; }
+
+        /* ===== ANALYTICS MODAL ===== */
+        .analytics-bar-wrap{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+        .analytics-bar{ height:8px; border-radius:999px; background:linear-gradient(90deg,#3b82f6,#8b5cf6); transition:width 0.6s cubic-bezier(.4,0,.2,1); }
+        .analytics-name{ font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:120px; flex-shrink:0; }
+        .analytics-count{ font-size:11px; color:var(--text2); white-space:nowrap; }
+
+        /* ===== COLOR SWATCHES ===== */
+        .color-swatch{ width:28px; height:28px; border-radius:50%; cursor:pointer; border:3px solid transparent; transition:all 0.15s; flex-shrink:0; }
+        .color-swatch.active, .color-swatch:hover{ border-color:white; transform:scale(1.15); }
+        .color-swatch.active{ box-shadow:0 0 0 2px #3b82f6; }
+
+        /* ===== ADVANCED SEARCH HIGHLIGHT ===== */
+        .search-match{ background:rgba(250,204,21,0.25); border-radius:2px; padding:0 2px; }
+
+        /* ===== LIGHT MODE FIXES ===== */
+        [data-theme="light"] .text-white{ color:#0f172a!important; }
+        [data-theme="light"] .text-gray-400{ color:#64748b!important; }
+        [data-theme="light"] .text-gray-300{ color:#475569!important; }
+        [data-theme="light"] .text-blue-300{ color:#1d4ed8!important; }
+        [data-theme="light"] .bg-gray-800{ background:#f1f5f9!important; }
+        [data-theme="light"] .bg-gray-800\/80{ background:rgba(241,245,249,0.9)!important; }
+        [data-theme="light"] .bg-gray-900{ background:#e2e8f0!important; }
+        [data-theme="light"] .bg-gray-900\/80{ background:rgba(226,232,240,0.9)!important; }
+        [data-theme="light"] .bg-gray-700{ background:#cbd5e1!important; }
+        [data-theme="light"] .border-gray-700{ border-color:#cbd5e1!important; }
+        [data-theme="light"] .border-gray-600{ border-color:#e2e8f0!important; }
+        [data-theme="light"] .text-blue-100{ color:#1e40af!important; }
+        [data-theme="light"] .bg-gray-800.bg-opacity-90{ background:rgba(248,250,252,0.95)!important; }
     </style>
 </head>
 <body class="min-h-screen p-3 sm:p-4 md:p-6 lg:max-w-7xl lg:mx-auto relative">
 
-    <nav class="flex flex-col md:flex-row justify-between items-center mb-4 sm:mb-6 pb-4 sm:pb-5 border-b border-gray-700 gap-4 mt-2 sm:mt-4">
-        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-wider text-blue-400 w-full md:w-auto text-center md:text-left drop-shadow-lg">
-            <i class="fa-solid fa-layer-group"></i> LinkHub
-        </h1>
-        
-        <div class="relative w-full md:w-[28rem] order-3 md:order-none">
-            <input type="text" id="searchInput" placeholder="Search websites..." class="w-full px-4 sm:px-5 py-3 sm:py-3 pl-10 sm:pl-12 rounded-xl bg-gray-800/80 border border-gray-600 focus:outline-none focus:border-blue-400 text-white shadow-inner transition text-sm sm:text-base">
-            <i class="fa-solid fa-search absolute left-4 top-3.5 sm:top-4 text-gray-400 text-base sm:text-lg"></i>
-        </div>
+<div id="toastContainer"></div>
 
-        <div class="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-3 w-full md:w-auto justify-center md:justify-end">
-            <button id="addBtn" class="hidden flex-1 sm:flex-none justify-center bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 rounded-xl font-medium transition shadow-lg flex items-center gap-2 text-sm sm:text-base">
-                <i class="fa-solid fa-plus"></i> Add Link
-            </button>
-            <button id="loginBtn" class="flex-1 sm:flex-none justify-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-medium transition shadow-lg flex items-center gap-2 text-sm sm:text-base">
-                <i class="fa-solid fa-user-lock"></i> Login
-            </button>
-            <button id="logoutBtn" class="hidden flex-1 sm:flex-none justify-center bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl font-medium transition shadow-lg flex items-center gap-2 text-sm sm:text-base">
-                <i class="fa-solid fa-right-from-bracket"></i> Logout
-            </button>
-        </div>
-    </nav>
-
-    <div id="categoryFilters" class="flex overflow-x-auto gap-2 sm:gap-3 py-2 mb-4 scrollbar-hide snap-x"></div>
-
-    <div id="loadingMsg" class="flex flex-col items-center justify-center mt-20 text-gray-400 w-full transition-opacity duration-300">
-        <i class="fa-solid fa-spinner fa-spin text-3xl sm:text-4xl mb-4 text-blue-500" id="spinnerIcon"></i>
-        <p class="text-base sm:text-lg" id="loadingText">Connecting to workspace...</p>
+<!-- ===== NAVBAR ===== -->
+<nav class="flex flex-col md:flex-row justify-between items-center mb-4 sm:mb-6 pb-4 sm:pb-5 border-b nav-border gap-4 mt-2 sm:mt-4">
+    <h1 class="text-2xl sm:text-3xl font-extrabold tracking-wider text-blue-400 w-full md:w-auto text-center md:text-left drop-shadow-lg">
+        <i class="fa-solid fa-layer-group"></i> LinkHub
+    </h1>
+    
+    <!-- Advanced Search -->
+    <div class="relative w-full md:w-[30rem] order-3 md:order-none">
+        <input type="text" id="searchInput" placeholder="Search name, URL, description... (Press /)"
+            class="w-full px-4 sm:px-5 py-3 pl-10 sm:pl-12 pr-24 rounded-xl theme-input border focus:outline-none shadow-inner transition text-sm sm:text-base">
+        <i class="fa-solid fa-search absolute left-4 top-3.5 sm:top-4 text-gray-400 text-base sm:text-lg"></i>
+        <span class="search-hint" id="searchHint">/</span>
+        <!-- Search filter type -->
+        <select id="searchFilter" class="absolute right-2 top-2 text-xs rounded-lg px-1 py-1.5 theme-input border focus:outline-none" style="width:60px">
+            <option value="all">All</option>
+            <option value="name">Name</option>
+            <option value="url">URL</option>
+            <option value="desc">Desc</option>
+            <option value="tag">Tag</option>
+        </select>
     </div>
 
-    <div id="linksContainer" class="hidden grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-y-8 sm:gap-x-6 relative mt-4 sm:mt-6"></div>
+    <div class="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-3 w-full md:w-auto justify-center md:justify-end">
+        <button id="themeToggle" class="theme-btn flex-none px-3 py-2.5 rounded-xl font-medium transition flex items-center gap-2 text-sm" title="Toggle Theme">
+            <i class="fa-solid fa-moon" id="themeIcon"></i>
+        </button>
+        <button id="analyticsBtn" class="theme-btn flex-none px-3 py-2.5 rounded-xl font-medium transition flex items-center gap-2 text-sm" title="Analytics">
+            <i class="fa-solid fa-chart-bar"></i>
+        </button>
+        <button id="exportBtn" class="theme-btn flex-none px-3 py-2.5 rounded-xl font-medium transition flex items-center gap-2 text-sm" title="Export Backup">
+            <i class="fa-solid fa-download"></i>
+        </button>
+        <button id="addBtn" class="hidden flex-1 sm:flex-none justify-center bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 rounded-xl font-medium transition shadow-lg flex items-center gap-2 text-sm sm:text-base">
+            <i class="fa-solid fa-plus"></i> Add Link
+        </button>
+        <button id="loginBtn" class="flex-1 sm:flex-none justify-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-medium transition shadow-lg flex items-center gap-2 text-sm sm:text-base">
+            <i class="fa-solid fa-user-lock"></i> Login
+        </button>
+        <button id="logoutBtn" class="hidden flex-1 sm:flex-none justify-center bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl font-medium transition shadow-lg flex items-center gap-2 text-sm sm:text-base">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+        </button>
+    </div>
+</nav>
 
-    <div id="viewModal" class="hidden fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
-        <div class="glass-card rounded-2xl w-full max-w-sm flex flex-col shadow-2xl border border-gray-600 overflow-hidden relative">
-            <div id="modalMaintenanceBadge" class="hidden absolute top-0 left-0 w-full bg-red-600 text-white text-[10px] sm:text-xs text-center py-1 font-bold tracking-widest z-10 animate-pulse">
-                <i class="fa-solid fa-server"></i> SERVER MAINTENANCE
-            </div>
-            <div class="p-4 sm:p-5 pt-6 sm:pt-7 border-b border-gray-700 flex justify-between items-center bg-gray-800 bg-opacity-90">
-                <div class="flex items-center gap-3">
-                    <img id="viewModalLogo" src="" alt="logo" class="w-10 h-10 object-contain bg-white rounded-lg p-1 shadow">
+<!-- Category Filters -->
+<div id="categoryFilters" class="flex overflow-x-auto gap-2 sm:gap-3 py-2 mb-2 scrollbar-hide snap-x"></div>
+
+<!-- Recently Added Section -->
+<div id="recentSection" class="recently-section hidden mb-4">
+    <div class="section-label"><i class="fa-solid fa-clock-rotate-left text-blue-400"></i> Recently Added (Last 7 Days)</div>
+    <div id="recentLinks" class="flex gap-3 overflow-x-auto scrollbar-hide pb-1"></div>
+</div>
+
+<!-- Loading -->
+<div id="loadingMsg" class="flex flex-col items-center justify-center mt-20 text-gray-400 w-full transition-opacity duration-300">
+    <i class="fa-solid fa-spinner fa-spin text-3xl sm:text-4xl mb-4 text-blue-500" id="spinnerIcon"></i>
+    <p class="text-base sm:text-lg" id="loadingText">Connecting to workspace...</p>
+</div>
+
+<!-- Links Grid -->
+<div id="linksContainer" class="hidden grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-y-8 sm:gap-x-6 relative mt-4 sm:mt-6"></div>
+
+<!-- ===== VIEW MODAL ===== -->
+<div id="viewModal" class="hidden fixed inset-0 modal-overlay backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+    <div class="glass-card rounded-2xl w-full max-w-sm flex flex-col shadow-2xl border border-gray-600 overflow-hidden relative">
+        <div id="modalMaintenanceBadge" class="hidden absolute top-0 left-0 w-full bg-red-600 text-white text-[10px] sm:text-xs text-center py-1 font-bold tracking-widest z-10 animate-pulse">
+            <i class="fa-solid fa-server"></i> SERVER MAINTENANCE
+        </div>
+        <div class="p-4 sm:p-5 pt-6 sm:pt-7 border-b border-gray-700 flex justify-between items-center bg-gray-800 bg-opacity-90">
+            <div class="flex items-center gap-3">
+                <img id="viewModalLogo" src="" alt="logo" class="w-10 h-10 object-contain bg-white rounded-lg p-1 shadow">
+                <div>
                     <h2 id="viewModalTitle" class="text-lg sm:text-xl font-bold text-white truncate w-40 sm:w-48">Website Name</h2>
+                    <p id="viewModalDesc" class="text-xs text-gray-400 truncate w-40 sm:w-48 mt-0.5"></p>
                 </div>
-                <button onclick="closeModal('viewModal')" class="text-gray-400 hover:text-red-400 transition bg-gray-700 hover:bg-gray-600 rounded-full w-8 h-8 flex items-center justify-center text-base sm:text-lg">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
             </div>
-            <div class="p-4 sm:p-5 overflow-y-auto max-h-[55vh] space-y-2 sm:space-y-3" id="viewModalLinks"></div>
-            <div class="p-3 sm:p-4 border-t border-gray-700 bg-gray-900 flex justify-center">
-                <a id="viewModalMainLink" href="#" target="_blank" class="w-full text-center px-4 sm:px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition shadow-lg flex justify-center items-center gap-2 text-sm sm:text-base">
-                    Open Main Website <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                </a>
-            </div>
+            <button onclick="closeModal('viewModal')" class="text-gray-400 hover:text-red-400 transition bg-gray-700 hover:bg-gray-600 rounded-full w-8 h-8 flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="p-4 sm:p-5 overflow-y-auto max-h-[55vh] space-y-2 sm:space-y-3" id="viewModalLinks"></div>
+        <div class="p-3 sm:p-4 border-t border-gray-700 bg-gray-900 flex justify-center">
+            <a id="viewModalMainLink" href="#" target="_blank"
+               class="w-full text-center px-4 sm:px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition shadow-lg flex justify-center items-center gap-2 text-sm sm:text-base">
+                Open Main Website <i class="fa-solid fa-arrow-up-right-from-square"></i>
+            </a>
         </div>
     </div>
+</div>
 
-    <div id="loginModal" class="hidden fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div class="glass-card p-6 sm:p-8 rounded-2xl w-full max-w-sm shadow-2xl">
-            <h2 class="text-xl sm:text-2xl font-bold mb-6 text-center text-white"><i class="fa-solid fa-shield-halved text-blue-400 mr-2"></i>Admin Login</h2>
-            <input type="email" id="email" placeholder="Email Address" class="w-full mb-4 px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 focus:outline-none focus:border-blue-500 text-white transition text-base">
-            <input type="password" id="password" placeholder="Password" class="w-full mb-6 px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 focus:outline-none focus:border-blue-500 text-white transition text-base">
-            <div class="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
-                <button onclick="closeModal('loginModal')" class="w-full sm:w-auto px-5 py-3 sm:py-2.5 rounded-lg bg-gray-700 hover:bg-gray-600 transition font-medium text-base">Cancel</button>
-                <button id="submitLogin" class="w-full sm:w-auto px-5 py-3 sm:py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 transition font-medium shadow-lg text-base">Login</button>
-            </div>
+<!-- ===== LOGIN MODAL ===== -->
+<div id="loginModal" class="hidden fixed inset-0 modal-overlay backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="glass-card p-6 sm:p-8 rounded-2xl w-full max-w-sm shadow-2xl">
+        <h2 class="text-xl sm:text-2xl font-bold mb-6 text-center text-white"><i class="fa-solid fa-shield-halved text-blue-400 mr-2"></i>Admin Login</h2>
+        <input type="email" id="email" placeholder="Email Address" class="w-full mb-4 px-4 py-3 rounded-lg theme-input border focus:outline-none transition text-base">
+        <div class="relative mb-6">
+            <input type="password" id="password" placeholder="Password" class="w-full px-4 py-3 pr-12 rounded-lg theme-input border focus:outline-none transition text-base">
+            <button type="button" id="togglePassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-400 transition p-1">
+                <i class="fa-solid fa-eye" id="eyeIcon"></i>
+            </button>
+        </div>
+        <div class="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
+            <button onclick="closeModal('loginModal')" class="w-full sm:w-auto px-5 py-3 sm:py-2.5 rounded-lg bg-gray-700 hover:bg-gray-600 transition font-medium text-base">Cancel</button>
+            <button id="submitLogin" class="w-full sm:w-auto px-5 py-3 sm:py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 transition font-medium shadow-lg text-base">Login</button>
         </div>
     </div>
+</div>
 
-    <div id="addModal" class="hidden fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
-        <div class="glass-card rounded-2xl w-full max-w-lg max-h-[95vh] flex flex-col shadow-2xl">
-            <div class="p-4 sm:p-5 border-b border-gray-700 flex justify-between items-center bg-gray-800 bg-opacity-90 rounded-t-2xl">
-                <h2 id="modalTitle" class="text-lg sm:text-xl font-bold text-white flex items-center gap-2"><i class="fa-solid fa-pen-to-square text-blue-400"></i> Add New Website</h2>
-                <button onclick="closeModal('addModal')" class="text-gray-400 hover:text-red-400 transition bg-gray-700 hover:bg-gray-600 rounded-full w-8 h-8 flex items-center justify-center text-base sm:text-lg">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            
-            <div class="p-4 sm:p-6 overflow-y-auto flex-1 space-y-3 sm:space-y-4">
-                <div>
-                    <label class="block text-sm mb-1 text-gray-400 font-medium">Website Name</label>
-                    <input type="text" id="siteName" class="w-full px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-white focus:outline-none focus:border-blue-500 transition text-base">
-                </div>
-                <div>
-                    <label class="block text-sm mb-1 text-gray-400 font-medium">Main URL</label>
-                    <input type="url" id="siteUrl" class="w-full px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-white focus:outline-none focus:border-blue-500 transition text-base">
-                </div>
-                <div>
-                    <label class="block text-sm mb-1 text-gray-400 font-medium">Category / Tag</label>
-                    <input type="text" id="siteCategory" list="categoryOptions" placeholder="e.g. Coding, Govt Website..." class="w-full px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-white focus:outline-none focus:border-blue-500 transition text-base">
-                    <datalist id="categoryOptions">
-                        <option value="Coding">
-                        <option value="Govt Website">
-                        <option value="Work">
-                        <option value="Entertainment">
-                        <option value="Tools">
-                    </datalist>
-                </div>
-                <div>
-                    <label class="block text-sm mb-1 text-gray-400 font-medium">Logo Image URL</label>
-                    <input type="text" id="siteLogo" class="w-full px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-white focus:outline-none focus:border-blue-500 transition text-base" placeholder="Optional">
-                </div>
-                
-                <div class="pt-3 border-t border-gray-700">
-                    <div class="flex justify-between items-center mb-3">
-                        <label class="block text-sm text-blue-300 font-medium">Direct Quick Links</label>
-                        <button id="addMoreSublinkBtn" type="button" class="text-xs bg-gray-700 hover:bg-blue-600 px-3 py-2 rounded-md text-white transition flex items-center shadow">
-                            <i class="fa-solid fa-plus mr-1.5"></i> Add Row
-                        </button>
-                    </div>
-                    <div id="dynamicSublinksContainer" class="space-y-3"></div>
-                </div>
-            </div>
-            
-            <div class="p-4 sm:p-5 border-t border-gray-700 bg-gray-800 bg-opacity-90 rounded-b-2xl flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
-                <button onclick="closeModal('addModal')" class="w-full sm:w-auto px-5 py-3 sm:py-2.5 rounded-lg bg-gray-700 hover:bg-gray-600 transition font-medium text-base">Cancel</button>
-                <button id="saveLinkBtn" class="w-full sm:w-auto px-6 py-3 sm:py-2.5 rounded-lg bg-green-500 hover:bg-green-400 text-gray-900 transition font-bold shadow-lg flex justify-center items-center gap-2 text-base">
-                    <i class="fa-solid fa-cloud-arrow-up"></i> Save Data
-                </button>
-            </div>
+<!-- ===== ADD/EDIT MODAL ===== -->
+<div id="addModal" class="hidden fixed inset-0 modal-overlay backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+    <div class="glass-card rounded-2xl w-full max-w-lg max-h-[95vh] flex flex-col shadow-2xl">
+        <div class="p-4 sm:p-5 border-b border-gray-700 flex justify-between items-center bg-gray-800 bg-opacity-90 rounded-t-2xl">
+            <h2 id="modalTitle" class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-pen-to-square text-blue-400"></i> Add New Website
+            </h2>
+            <button onclick="closeModal('addModal')" class="text-gray-400 hover:text-red-400 transition bg-gray-700 hover:bg-gray-600 rounded-full w-8 h-8 flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
         </div>
-    </div>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getDatabase, ref, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyDNqZanl39q1wZdWBozONmtG-aWY-4vgCg",
-            authDomain: "useful-4d6ac.firebaseapp.com",
-            databaseURL: "https://useful-4d6ac-default-rtdb.firebaseio.com",
-            projectId: "useful-4d6ac",
-            storageBucket: "useful-4d6ac.firebasestorage.app",
-            messagingSenderId: "277397818455",
-            appId: "1:277397818455:web:736d9ee493b04c488fa712"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getDatabase(app);
         
-        let isAdmin = false;
-        let allLinksData = [];
-        let editingId = null;
-        let activeCategory = 'All'; 
+        <div class="p-4 sm:p-6 overflow-y-auto flex-1 space-y-3 sm:space-y-4">
+            <div>
+                <label class="block text-sm mb-1 text-gray-400 font-medium">Website Name *</label>
+                <input type="text" id="siteName" class="w-full px-4 py-3 rounded-lg theme-input border focus:outline-none transition text-base">
+            </div>
+            <div>
+                <label class="block text-sm mb-1 text-gray-400 font-medium">Main URL *</label>
+                <input type="url" id="siteUrl" class="w-full px-4 py-3 rounded-lg theme-input border focus:outline-none transition text-base" placeholder="https://example.com">
+            </div>
+            <div>
+                <label class="block text-sm mb-1 text-gray-400 font-medium">Short Description</label>
+                <input type="text" id="siteDesc" class="w-full px-4 py-3 rounded-lg theme-input border focus:outline-none transition text-base" placeholder="What is this website?">
+            </div>
+            <div>
+                <label class="block text-sm mb-1 text-gray-400 font-medium">Category / Tag</label>
+                <input type="text" id="siteCategory" list="categoryOptions" placeholder="e.g. Coding, Govt Website..." class="w-full px-4 py-3 rounded-lg theme-input border focus:outline-none transition text-base">
+                <datalist id="categoryOptions">
+                    <option value="Coding"><option value="Govt Website"><option value="Work"><option value="Entertainment"><option value="Tools">
+                </datalist>
+            </div>
 
-        const sublinksContainer = document.getElementById('dynamicSublinksContainer');
-        const searchInput = document.getElementById('searchInput');
-        const loadingMsg = document.getElementById('loadingMsg');
-        const loadingText = document.getElementById('loadingText');
-        const spinnerIcon = document.getElementById('spinnerIcon');
-        const linksContainer = document.getElementById('linksContainer');
-        const categoryFiltersContainer = document.getElementById('categoryFilters');
+            <!-- Logo with auto-fetch -->
+            <div>
+                <label class="block text-sm mb-1 text-gray-400 font-medium flex justify-between">
+                    <span>Logo Image URL</span>
+                    <button type="button" id="autoLogoBtn" class="text-xs text-blue-400 hover:text-blue-300 transition flex items-center gap-1">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Auto Fetch
+                    </button>
+                </label>
+                <div class="flex gap-2 items-center">
+                    <input type="text" id="siteLogo" class="w-full px-4 py-3 rounded-lg theme-input border focus:outline-none transition text-base" placeholder="Optional — or click Auto Fetch">
+                    <img id="logoPreview" src="" alt="" class="hidden w-10 h-10 object-contain bg-white rounded-lg p-1 border border-gray-600 flex-shrink-0">
+                </div>
+                <p id="logoFetchStatus" class="text-xs text-gray-500 mt-1 hidden"></p>
+            </div>
 
-        window.closeModal = (id) => {
-            document.getElementById(id).classList.add('hidden');
-            document.body.style.overflow = ''; 
-            if(id === 'addModal') editingId = null;
+            <!-- 🆕 CUSTOM CARD COLOR -->
+            <div>
+                <label class="block text-sm mb-2 text-gray-400 font-medium">Card Accent Color</label>
+                <div class="flex gap-2 flex-wrap" id="colorSwatches">
+                    <!-- Filled by JS -->
+                </div>
+                <input type="hidden" id="siteColor" value="">
+            </div>
+
+            <!-- 🆕 PRIVATE LINK TOGGLE -->
+            <div class="flex items-center justify-between p-3 rounded-lg bg-gray-900/50 border border-gray-700">
+                <div>
+                    <div class="text-sm font-medium text-white flex items-center gap-2"><i class="fa-solid fa-lock text-red-400"></i> Private Link</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Sirf admin login pe dikhega</div>
+                </div>
+                <button type="button" id="privateToggle" onclick="togglePrivate()"
+                    class="w-12 h-6 rounded-full transition-colors duration-200 bg-gray-600 relative flex-shrink-0" role="switch" aria-checked="false">
+                    <span id="privateThumb" class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200"></span>
+                </button>
+            </div>
+
+            <!-- 🆕 PIN TO TOP TOGGLE -->
+            <div class="flex items-center justify-between p-3 rounded-lg bg-gray-900/50 border border-gray-700">
+                <div>
+                    <div class="text-sm font-medium text-white flex items-center gap-2"><i class="fa-solid fa-thumbtack text-purple-400"></i> Pin to Top</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Category ke andar sabse upar rahega</div>
+                </div>
+                <button type="button" id="pinToggle" onclick="togglePin()"
+                    class="w-12 h-6 rounded-full transition-colors duration-200 bg-gray-600 relative flex-shrink-0" role="switch" aria-checked="false">
+                    <span id="pinThumb" class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200"></span>
+                </button>
+            </div>
+
+            <div class="pt-3 border-t border-gray-700">
+                <div class="flex justify-between items-center mb-3">
+                    <label class="block text-sm text-blue-300 font-medium">Direct Quick Links</label>
+                    <button id="addMoreSublinkBtn" type="button" class="text-xs bg-gray-700 hover:bg-blue-600 px-3 py-2 rounded-md text-white transition flex items-center shadow">
+                        <i class="fa-solid fa-plus mr-1.5"></i> Add Row
+                    </button>
+                </div>
+                <div id="dynamicSublinksContainer" class="space-y-3"></div>
+            </div>
+        </div>
+        
+        <div class="p-4 sm:p-5 border-t border-gray-700 bg-gray-800 bg-opacity-90 rounded-b-2xl flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
+            <button onclick="closeModal('addModal')" class="w-full sm:w-auto px-5 py-3 sm:py-2.5 rounded-lg bg-gray-700 hover:bg-gray-600 transition font-medium text-base">Cancel</button>
+            <button id="saveLinkBtn" class="w-full sm:w-auto px-6 py-3 sm:py-2.5 rounded-lg bg-green-500 hover:bg-green-400 text-gray-900 transition font-bold shadow-lg flex justify-center items-center gap-2 text-base">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Save Data
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 🆕 ANALYTICS MODAL ===== -->
+<div id="analyticsModal" class="hidden fixed inset-0 modal-overlay backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+    <div class="glass-card rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+        <div class="p-4 sm:p-5 border-b border-gray-700 flex justify-between items-center bg-gray-800 bg-opacity-90 rounded-t-2xl">
+            <h2 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-chart-bar text-blue-400"></i> Analytics Dashboard
+            </h2>
+            <button onclick="closeModal('analyticsModal')" class="text-gray-400 hover:text-red-400 transition bg-gray-700 hover:bg-gray-600 rounded-full w-8 h-8 flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
+            <!-- Stats Row -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="analyticsStats"></div>
+            <!-- Chart -->
+            <div>
+                <div class="section-label"><i class="fa-solid fa-fire text-orange-400"></i> Most Clicked Links</div>
+                <canvas id="analyticsChart" height="160"></canvas>
+            </div>
+            <!-- Top list -->
+            <div>
+                <div class="section-label"><i class="fa-solid fa-ranking-star text-yellow-400"></i> Click Leaderboard</div>
+                <div id="analyticsLeaderboard" class="space-y-2"></div>
+            </div>
+            <!-- Category breakdown -->
+            <div>
+                <div class="section-label"><i class="fa-solid fa-tags text-green-400"></i> Links per Category</div>
+                <div id="analyticsCategoryBreakdown" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== LINK PREVIEW TOOLTIP (global) ===== -->
+<div id="globalPreviewTooltip" class="link-preview-tooltip" style="position:fixed;z-index:9000;pointer-events:none;opacity:0;transition:opacity 0.2s;max-width:220px;border-radius:12px;padding:10px;background:var(--bg2);border:1px solid var(--border);box-shadow:0 12px 40px rgba(0,0,0,0.5);">
+    <div id="previewFavicon" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <img id="previewFaviconImg" src="" style="width:16px;height:16px;object-fit:contain;" alt="">
+        <span id="previewSiteName" style="font-size:11px;font-weight:700;color:var(--text);"></span>
+    </div>
+    <div id="previewDesc" style="font-size:11px;color:var(--text2);line-height:1.4;margin-bottom:6px;"></div>
+    <div id="previewUrl" style="font-size:10px;color:#3b82f6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+    <div id="previewClicks" style="font-size:10px;color:var(--text2);margin-top:4px;"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { getDatabase, ref, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDNqZanl39q1wZdWBozONmtG-aWY-4vgCg",
+    authDomain: "useful-4d6ac.firebaseapp.com",
+    databaseURL: "https://useful-4d6ac-default-rtdb.firebaseio.com",
+    projectId: "useful-4d6ac",
+    storageBucket: "useful-4d6ac.firebasestorage.app",
+    messagingSenderId: "277397818455",
+    appId: "1:277397818455:web:736d9ee493b04c488fa712"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+let isAdmin = false;
+let allLinksData = [];
+let editingId = null;
+let activeCategory = 'All';
+let isPrivate = false;
+let isPinned = false;
+let selectedColor = '';
+let analyticsChartInstance = null;
+
+const sublinksContainer = document.getElementById('dynamicSublinksContainer');
+const searchInput = document.getElementById('searchInput');
+const searchFilter = document.getElementById('searchFilter');
+const loadingMsg = document.getElementById('loadingMsg');
+const linksContainer = document.getElementById('linksContainer');
+const categoryFiltersContainer = document.getElementById('categoryFilters');
+const logoPreview = document.getElementById('logoPreview');
+const logoFetchStatus = document.getElementById('logoFetchStatus');
+const siteLogoInput = document.getElementById('siteLogo');
+
+// =============================================
+// CARD COLORS
+// =============================================
+const CARD_COLORS = [
+    { name:'None', value:'', bg:'#334155' },
+    { name:'Blue', value:'#3b82f6', bg:'#3b82f6' },
+    { name:'Purple', value:'#8b5cf6', bg:'#8b5cf6' },
+    { name:'Green', value:'#22c55e', bg:'#22c55e' },
+    { name:'Red', value:'#ef4444', bg:'#ef4444' },
+    { name:'Orange', value:'#f97316', bg:'#f97316' },
+    { name:'Pink', value:'#ec4899', bg:'#ec4899' },
+    { name:'Yellow', value:'#eab308', bg:'#eab308' },
+    { name:'Cyan', value:'#06b6d4', bg:'#06b6d4' },
+];
+
+function buildColorSwatches(currentColor = '') {
+    const container = document.getElementById('colorSwatches');
+    container.innerHTML = '';
+    CARD_COLORS.forEach(c => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `color-swatch ${currentColor === c.value ? 'active' : ''}`;
+        btn.style.background = c.bg;
+        btn.title = c.name;
+        if (c.value === '') btn.innerHTML = '<i class="fa-solid fa-ban text-gray-400 text-xs" style="margin:auto;display:block;text-align:center;line-height:22px;"></i>';
+        btn.onclick = () => {
+            document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+            btn.classList.add('active');
+            selectedColor = c.value;
+            document.getElementById('siteColor').value = c.value;
         };
-        window.openModal = (id) => {
-            document.getElementById(id).classList.remove('hidden');
-            document.body.style.overflow = 'hidden'; 
-        };
+        container.appendChild(btn);
+    });
+    selectedColor = currentColor;
+    document.getElementById('siteColor').value = currentColor;
+}
 
-        window.handleImageError = (imgElement, cardId) => {
-            imgElement.onerror = null; 
-            imgElement.src = 'https://ui-avatars.com/api/?name=Offline&background=ef4444&color=fff&size=64';
-            const badgeDiv = document.getElementById(`status-${cardId}`);
-            if(badgeDiv) {
-                badgeDiv.innerHTML = `<div class="absolute -top-3 sm:-top-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-[10px] uppercase font-bold tracking-widest px-3 py-1 rounded-full shadow-[0_0_10px_rgba(220,38,38,0.8)] border border-red-800 animate-pulse z-20 flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-triangle-exclamation"></i> Error</div>`;
+// =============================================
+// TOGGLE HELPERS
+// =============================================
+window.togglePrivate = () => {
+    isPrivate = !isPrivate;
+    const btn = document.getElementById('privateToggle');
+    const thumb = document.getElementById('privateThumb');
+    btn.style.background = isPrivate ? '#dc2626' : '#4b5563';
+    thumb.style.transform = isPrivate ? 'translateX(24px)' : 'translateX(0)';
+};
+window.togglePin = () => {
+    isPinned = !isPinned;
+    const btn = document.getElementById('pinToggle');
+    const thumb = document.getElementById('pinThumb');
+    btn.style.background = isPinned ? '#7c3aed' : '#4b5563';
+    thumb.style.transform = isPinned ? 'translateX(24px)' : 'translateX(0)';
+};
+function setPrivate(val) {
+    isPrivate = val;
+    const btn = document.getElementById('privateToggle');
+    const thumb = document.getElementById('privateThumb');
+    btn.style.background = val ? '#dc2626' : '#4b5563';
+    thumb.style.transform = val ? 'translateX(24px)' : 'translateX(0)';
+}
+function setPin(val) {
+    isPinned = val;
+    const btn = document.getElementById('pinToggle');
+    const thumb = document.getElementById('pinThumb');
+    btn.style.background = val ? '#7c3aed' : '#4b5563';
+    thumb.style.transform = val ? 'translateX(24px)' : 'translateX(0)';
+}
+
+// =============================================
+// TOAST
+// =============================================
+window.showToast = (message, type = 'info') => {
+    const container = document.getElementById('toastContainer');
+    const icons = { success:'fa-check-circle', error:'fa-circle-xmark', info:'fa-circle-info', warning:'fa-triangle-exclamation' };
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<i class="fa-solid ${icons[type]}"></i><span>${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3200);
+};
+
+// =============================================
+// THEME
+// =============================================
+let currentTheme = localStorage.getItem('linkHubTheme') || 'dark';
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.getElementById('themeIcon').className = theme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+    localStorage.setItem('linkHubTheme', theme);
+    currentTheme = theme;
+    if (analyticsChartInstance) { analyticsChartInstance.destroy(); analyticsChartInstance = null; }
+}
+applyTheme(currentTheme);
+document.getElementById('themeToggle').addEventListener('click', () => {
+    applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+    showToast(`${currentTheme === 'dark' ? 'Dark' : 'Light'} mode on`, 'info');
+});
+
+// =============================================
+// KEYBOARD SHORTCUTS
+// =============================================
+document.addEventListener('keydown', (e) => {
+    if (e.key === '/' && document.activeElement !== searchInput && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
+        e.preventDefault(); searchInput.focus(); searchInput.select();
+    }
+    if (e.key === 'Escape') ['viewModal','loginModal','addModal','analyticsModal'].forEach(id => {
+        if (!document.getElementById(id).classList.contains('hidden')) closeModal(id);
+    });
+});
+searchInput.addEventListener('focus', () => document.getElementById('searchHint').style.opacity='0');
+searchInput.addEventListener('blur', () => document.getElementById('searchHint').style.opacity='1');
+
+// =============================================
+// SHOW/HIDE PASSWORD
+// =============================================
+document.getElementById('togglePassword').addEventListener('click', () => {
+    const pwInput = document.getElementById('password');
+    const eyeIcon = document.getElementById('eyeIcon');
+    pwInput.type = pwInput.type === 'password' ? 'text' : 'password';
+    eyeIcon.className = pwInput.type === 'password' ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash';
+});
+
+// =============================================
+// AUTO LOGO FETCH
+// =============================================
+function showLogoPreview(url) {
+    if (!url) { logoPreview.classList.add('hidden'); return; }
+    logoPreview.src = url; logoPreview.classList.remove('hidden');
+    logoPreview.onerror = () => logoPreview.classList.add('hidden');
+}
+siteLogoInput.addEventListener('input', () => showLogoPreview(siteLogoInput.value.trim()));
+
+document.getElementById('autoLogoBtn').addEventListener('click', () => {
+    const url = document.getElementById('siteUrl').value.trim();
+    if (!url) { showToast('Pehle Main URL dalo!', 'warning'); return; }
+    let domain;
+    try { domain = new URL(url).hostname.replace('www.',''); } catch { showToast('Valid URL nahi hai','error'); return; }
+    logoFetchStatus.classList.remove('hidden');
+    logoFetchStatus.textContent = '⏳ Logo fetch ho raha hai...';
+    document.getElementById('autoLogoBtn').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    const clearbitUrl = `https://logo.clearbit.com/${domain}`;
+    const fallbackUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+    const img = new Image();
+    img.onload = () => {
+        siteLogoInput.value = clearbitUrl; showLogoPreview(clearbitUrl);
+        logoFetchStatus.textContent = '✅ Logo mil gaya!'; logoFetchStatus.className='text-xs text-green-400 mt-1';
+        document.getElementById('autoLogoBtn').innerHTML='<i class="fa-solid fa-wand-magic-sparkles"></i> Auto Fetch';
+        showToast('Logo auto-fetch!','success');
+    };
+    img.onerror = () => {
+        siteLogoInput.value = fallbackUrl; showLogoPreview(fallbackUrl);
+        logoFetchStatus.textContent = '✅ Favicon mila!'; logoFetchStatus.className='text-xs text-yellow-400 mt-1';
+        document.getElementById('autoLogoBtn').innerHTML='<i class="fa-solid fa-wand-magic-sparkles"></i> Auto Fetch';
+        showToast('Favicon fetch ho gaya!','info');
+    };
+    img.src = clearbitUrl;
+});
+
+// =============================================
+// CLICK TRACKING
+// =============================================
+window.trackClick = async (id) => {
+    if (!id) return;
+    const item = allLinksData.find(l => l.id === id);
+    if (item) {
+        try { await update(ref(db, 'websites/'+id), { clickCount: (item.clickCount||0)+1 }); } catch(e) {}
+    }
+};
+
+// =============================================
+// EXPORT
+// =============================================
+document.getElementById('exportBtn').addEventListener('click', () => {
+    if (!allLinksData.length) { showToast('Koi data nahi','warning'); return; }
+    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), links: allLinksData }, null, 2)], { type:'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `LinkHub_Backup_${new Date().toLocaleDateString('en-IN').replace(/\//g,'-')}.json`;
+    a.click(); showToast(`${allLinksData.length} links export ho gaye!`,'success');
+});
+
+// =============================================
+// 🆕 ANALYTICS DASHBOARD
+// =============================================
+document.getElementById('analyticsBtn').addEventListener('click', () => {
+    buildAnalytics(); openModal('analyticsModal');
+});
+
+function buildAnalytics() {
+    const total = allLinksData.length;
+    const totalClicks = allLinksData.reduce((s,d) => s+(d.clickCount||0), 0);
+    const starred = allLinksData.filter(d => d.isStarred).length;
+    const categories = [...new Set(allLinksData.map(d => d.category||'Other'))].length;
+    const privateCount = allLinksData.filter(d => d.isPrivate).length;
+
+    document.getElementById('analyticsStats').innerHTML = `
+        ${statCard('fa-link','Total Links', total, '#3b82f6')}
+        ${statCard('fa-arrow-pointer','Total Clicks', totalClicks, '#8b5cf6')}
+        ${statCard('fa-star','Starred', starred, '#eab308')}
+        ${statCard('fa-tags','Categories', categories, '#22c55e')}
+    `;
+
+    // Top clicked
+    const sorted = [...allLinksData].sort((a,b) => (b.clickCount||0)-(a.clickCount||0)).slice(0,8);
+    const maxClicks = sorted[0]?.clickCount || 1;
+
+    // Chart
+    if (analyticsChartInstance) analyticsChartInstance.destroy();
+    const ctx = document.getElementById('analyticsChart').getContext('2d');
+    const isDark = currentTheme === 'dark';
+    analyticsChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: sorted.map(d => d.name || 'Unknown'),
+            datasets: [{ data: sorted.map(d => d.clickCount||0), backgroundColor: sorted.map((_,i) => `hsl(${210+i*15},80%,60%)`), borderRadius: 6 }]
+        },
+        options: {
+            responsive: true, plugins: { legend: { display:false }, tooltip: { callbacks: { label: ctx => ` ${ctx.raw} clicks` } } },
+            scales: {
+                x: { ticks: { color: isDark?'#94a3b8':'#64748b', font:{size:11} }, grid: { color: isDark?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.05)' } },
+                y: { ticks: { color: isDark?'#94a3b8':'#64748b' }, grid: { color: isDark?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.05)' } }
             }
-            const cardWrapper = document.getElementById(`card-wrapper-${cardId}`);
-            if(cardWrapper) cardWrapper.classList.add('grayscale', 'opacity-80');
-        };
-
-        document.getElementById('viewModalLogo').onerror = function() {
-            this.onerror = null;
-            this.src = 'https://ui-avatars.com/api/?name=Offline&background=ef4444&color=fff&size=64';
-            document.getElementById('modalMaintenanceBadge').classList.remove('hidden');
-        };
-
-        onAuthStateChanged(auth, (user) => {
-            isAdmin = !!user;
-            document.getElementById('loginBtn').classList.toggle('hidden', isAdmin);
-            document.getElementById('logoutBtn').classList.toggle('hidden', !isAdmin);
-            document.getElementById('addBtn').classList.toggle('hidden', !isAdmin);
-            renderLinks();
-        });
-
-        document.getElementById('loginBtn').addEventListener('click', () => openModal('loginModal'));
-        document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
-        document.getElementById('submitLogin').addEventListener('click', async () => {
-            try {
-                await signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value);
-                closeModal('loginModal');
-            } catch (error) { alert('Login Failed: ' + error.message); }
-        });
-
-        function createSublinkRow(name = '', url = '') {
-            const row = document.createElement('div');
-            row.className = 'flex flex-col sm:flex-row gap-2 items-stretch sm:items-center bg-gray-900/80 p-3 sm:p-2 rounded-lg border border-gray-700';
-            row.innerHTML = `
-                <input type="text" placeholder="Link Name" value="${name}" class="sublink-name w-full sm:w-1/3 px-3 py-2 rounded-md bg-gray-800 border border-gray-600 text-white text-base sm:text-sm focus:border-blue-500 outline-none">
-                <input type="url" placeholder="URL" value="${url}" class="sublink-url w-full sm:flex-1 px-3 py-2 rounded-md bg-gray-800 border border-gray-600 text-white text-base sm:text-sm focus:border-blue-500 outline-none">
-                <button type="button" class="w-full sm:w-auto mt-1 sm:mt-0 text-red-400 bg-red-500/10 sm:bg-transparent hover:bg-red-500/20 sm:hover:bg-transparent hover:text-red-300 px-3 py-2 transition flex justify-center items-center gap-2 rounded-md text-base sm:text-sm"><i class="fa-solid fa-trash-can"></i> <span class="sm:hidden">Remove</span></button>
-            `;
-            row.querySelector('button').addEventListener('click', () => row.remove());
-            sublinksContainer.appendChild(row);
         }
-        document.getElementById('addMoreSublinkBtn').addEventListener('click', () => createSublinkRow());
+    });
 
-        document.getElementById('addBtn').addEventListener('click', () => {
-            editingId = null;
-            document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-400"></i> Add New Website';
-            document.getElementById('siteName').value = '';
-            document.getElementById('siteUrl').value = '';
-            document.getElementById('siteCategory').value = '';
-            document.getElementById('siteLogo').value = '';
-            sublinksContainer.innerHTML = '';
-            createSublinkRow();
-            openModal('addModal');
+    // Leaderboard
+    const lb = document.getElementById('analyticsLeaderboard');
+    lb.innerHTML = sorted.length === 0 ? '<p class="text-gray-500 text-sm text-center py-4">Abhi koi clicks nahi</p>' :
+        sorted.map((d,i) => `
+        <div class="analytics-bar-wrap">
+            <span class="text-xs font-bold text-gray-500 w-5">#${i+1}</span>
+            <span class="analytics-name" title="${d.name}">${d.name||'Unknown'}</span>
+            <div style="flex:1;background:var(--bg3);border-radius:999px;height:8px;overflow:hidden;">
+                <div class="analytics-bar" style="width:${Math.round(((d.clickCount||0)/maxClicks)*100)}%"></div>
+            </div>
+            <span class="analytics-count">${d.clickCount||0}</span>
+        </div>`).join('');
+
+    // Category breakdown
+    const cats = {};
+    allLinksData.forEach(d => { const c = d.category||'Other'; cats[c] = (cats[c]||0)+1; });
+    const catEntries = Object.entries(cats).sort((a,b)=>b[1]-a[1]);
+    const maxCat = catEntries[0]?.[1]||1;
+    document.getElementById('analyticsCategoryBreakdown').innerHTML = catEntries.map(([cat,count]) => `
+        <div class="analytics-bar-wrap">
+            <span class="analytics-name">${cat}</span>
+            <div style="flex:1;background:var(--bg3);border-radius:999px;height:8px;overflow:hidden;">
+                <div class="analytics-bar" style="width:${Math.round((count/maxCat)*100)}%;background:linear-gradient(90deg,#22c55e,#06b6d4);"></div>
+            </div>
+            <span class="analytics-count">${count} link${count>1?'s':''}</span>
+        </div>`).join('');
+}
+
+function statCard(icon, label, value, color) {
+    return `<div class="rounded-xl p-3 sm:p-4 text-center" style="background:${color}18;border:1px solid ${color}33;">
+        <i class="fa-solid ${icon} text-xl mb-1" style="color:${color}"></i>
+        <div class="text-2xl font-black" style="color:${color}">${value}</div>
+        <div class="text-xs text-gray-400 mt-0.5">${label}</div>
+    </div>`;
+}
+
+// =============================================
+// 🆕 LINK PREVIEW TOOLTIP
+// =============================================
+const tooltip = document.getElementById('globalPreviewTooltip');
+let previewTimer = null;
+
+window.showLinkPreview = (event, data) => {
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(() => {
+        const safeLogo = data.logo || `https://www.google.com/s2/favicons?domain=${data.mainUrl}&sz=32`;
+        document.getElementById('previewFaviconImg').src = safeLogo;
+        document.getElementById('previewSiteName').textContent = data.name || '';
+        document.getElementById('previewDesc').textContent = data.description || 'No description';
+        document.getElementById('previewUrl').textContent = data.mainUrl || '';
+        document.getElementById('previewClicks').textContent = (data.clickCount||0) > 0 ? `👆 ${data.clickCount} clicks` : '';
+
+        tooltip.style.opacity = '0';
+        tooltip.style.display = 'block';
+        const rect = event.currentTarget.getBoundingClientRect();
+        const tW = 220, tH = 120;
+        let left = rect.left + rect.width/2 - tW/2;
+        let top = rect.top - tH - 14 + window.scrollY;
+        if (left < 8) left = 8;
+        if (left + tW > window.innerWidth - 8) left = window.innerWidth - tW - 8;
+        if (top < 8) top = rect.bottom + 8 + window.scrollY;
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+        tooltip.style.opacity = '1';
+    }, 400);
+};
+window.hideLinkPreview = () => {
+    clearTimeout(previewTimer);
+    tooltip.style.opacity = '0';
+    setTimeout(() => { tooltip.style.display = 'none'; }, 200);
+};
+
+// =============================================
+// MODAL HELPERS
+// =============================================
+window.closeModal = (id) => {
+    document.getElementById(id).classList.add('hidden');
+    document.body.style.overflow = '';
+    if (id === 'addModal') {
+        editingId = null; logoPreview.classList.add('hidden');
+        logoFetchStatus.classList.add('hidden');
+        document.getElementById('autoLogoBtn').innerHTML='<i class="fa-solid fa-wand-magic-sparkles"></i> Auto Fetch';
+    }
+};
+window.openModal = (id) => {
+    document.getElementById(id).classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+};
+['viewModal','loginModal','addModal','analyticsModal'].forEach(id => {
+    document.getElementById(id).addEventListener('click', (e) => {
+        if (e.target === document.getElementById(id)) closeModal(id);
+    });
+});
+
+window.handleImageError = (imgElement, cardId) => {
+    imgElement.onerror = null;
+    imgElement.src = 'https://ui-avatars.com/api/?name=Offline&background=ef4444&color=fff&size=64';
+    const badgeDiv = document.getElementById(`status-${cardId}`);
+    if (badgeDiv) badgeDiv.innerHTML = `<div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-[10px] uppercase font-bold tracking-widest px-3 py-1 rounded-full animate-pulse z-20 flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-triangle-exclamation"></i> Error</div>`;
+    const wrapper = document.getElementById(`card-wrapper-${cardId}`);
+    if (wrapper) wrapper.classList.add('grayscale','opacity-80');
+};
+document.getElementById('viewModalLogo').onerror = function() {
+    this.onerror=null; this.src='https://ui-avatars.com/api/?name=Offline&background=ef4444&color=fff&size=64';
+    document.getElementById('modalMaintenanceBadge').classList.remove('hidden');
+};
+
+// =============================================
+// AUTH
+// =============================================
+onAuthStateChanged(auth, (user) => {
+    isAdmin = !!user;
+    document.getElementById('loginBtn').classList.toggle('hidden', isAdmin);
+    document.getElementById('logoutBtn').classList.toggle('hidden', !isAdmin);
+    document.getElementById('addBtn').classList.toggle('hidden', !isAdmin);
+    renderLinks(); renderRecentSection();
+});
+document.getElementById('loginBtn').addEventListener('click', () => openModal('loginModal'));
+document.getElementById('logoutBtn').addEventListener('click', async () => { await signOut(auth); showToast('Logout ho gaye','info'); });
+document.getElementById('submitLogin').addEventListener('click', async () => {
+    const btn = document.getElementById('submitLogin');
+    btn.textContent='Logging in...'; btn.disabled=true;
+    try {
+        await signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value);
+        closeModal('loginModal'); showToast('Admin login successful!','success');
+    } catch(error) { showToast('Login Failed: '+error.message,'error'); }
+    finally { btn.textContent='Login'; btn.disabled=false; }
+});
+
+// =============================================
+// SUBLINK ROW
+// =============================================
+function createSublinkRow(name='', url='') {
+    const row = document.createElement('div');
+    row.className='flex flex-col sm:flex-row gap-2 items-stretch sm:items-center bg-gray-900/80 p-3 sm:p-2 rounded-lg border border-gray-700';
+    row.innerHTML=`
+        <input type="text" placeholder="Link Name" value="${name}" class="sublink-name w-full sm:w-1/3 px-3 py-2 rounded-md theme-input border text-base sm:text-sm outline-none">
+        <input type="url" placeholder="URL" value="${url}" class="sublink-url w-full sm:flex-1 px-3 py-2 rounded-md theme-input border text-base sm:text-sm outline-none">
+        <button type="button" class="w-full sm:w-auto text-red-400 bg-red-500/10 hover:bg-red-500/20 px-3 py-2 transition flex justify-center items-center gap-2 rounded-md text-sm"><i class="fa-solid fa-trash-can"></i> <span class="sm:hidden">Remove</span></button>
+    `;
+    row.querySelector('button').addEventListener('click', () => row.remove());
+    sublinksContainer.appendChild(row);
+}
+document.getElementById('addMoreSublinkBtn').addEventListener('click', () => createSublinkRow());
+
+// =============================================
+// ADD BUTTON
+// =============================================
+document.getElementById('addBtn').addEventListener('click', () => {
+    editingId=null; isPrivate=false; isPinned=false;
+    document.getElementById('modalTitle').innerHTML='<i class="fa-solid fa-pen-to-square text-blue-400"></i> Add New Website';
+    ['siteName','siteUrl','siteDesc','siteCategory','siteLogo'].forEach(id => document.getElementById(id).value='');
+    logoPreview.classList.add('hidden'); logoFetchStatus.classList.add('hidden');
+    document.getElementById('autoLogoBtn').innerHTML='<i class="fa-solid fa-wand-magic-sparkles"></i> Auto Fetch';
+    setPrivate(false); setPin(false);
+    buildColorSwatches('');
+    sublinksContainer.innerHTML=''; createSublinkRow();
+    openModal('addModal');
+});
+
+// =============================================
+// STAR / EDIT / DELETE
+// =============================================
+window.toggleStar = async (id) => {
+    const item = allLinksData.find(l => l.id===id);
+    if (item) {
+        try { await update(ref(db,'websites/'+id), {isStarred:!item.isStarred}); showToast(item.isStarred?'Star hata diya':'Starred! ⭐', item.isStarred?'info':'success'); }
+        catch(e) { showToast('Error: '+e.message,'error'); }
+    }
+};
+window.editLink = (id) => {
+    const item = allLinksData.find(l => l.id===id);
+    if (item) {
+        editingId=id;
+        document.getElementById('modalTitle').innerHTML='<i class="fa-solid fa-pen-to-square text-blue-400"></i> Edit Website';
+        document.getElementById('siteName').value=item.name||'';
+        document.getElementById('siteUrl').value=item.mainUrl||'';
+        document.getElementById('siteDesc').value=item.description||'';
+        document.getElementById('siteCategory').value=item.category||'Other';
+        document.getElementById('siteLogo').value=item.logo||'';
+        showLogoPreview(item.logo||'');
+        logoFetchStatus.classList.add('hidden');
+        document.getElementById('autoLogoBtn').innerHTML='<i class="fa-solid fa-wand-magic-sparkles"></i> Auto Fetch';
+        setPrivate(!!item.isPrivate); setPin(!!item.isPinned);
+        buildColorSwatches(item.cardColor||'');
+        sublinksContainer.innerHTML='';
+        if (item.sublinks?.length) item.sublinks.forEach(l => createSublinkRow(l.name,l.url));
+        else createSublinkRow();
+        openModal('addModal');
+    }
+};
+window.deleteLink = async (id) => {
+    const item = allLinksData.find(l => l.id===id);
+    const name = item?.name||'this link';
+    if (confirm(`"${name}" permanently delete karna chahte ho?`)) {
+        try { await remove(ref(db,'websites/'+id)); showToast(`"${name}" delete ho gaya`,'info'); }
+        catch(e) { showToast('Delete fail: '+e.message,'error'); }
+    }
+};
+
+// =============================================
+// SAVE
+// =============================================
+document.getElementById('saveLinkBtn').addEventListener('click', async () => {
+    const btn=document.getElementById('saveLinkBtn');
+    btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Saving...'; btn.disabled=true;
+    const name=document.getElementById('siteName').value.trim();
+    const url=document.getElementById('siteUrl').value.trim();
+    const logo=document.getElementById('siteLogo').value.trim();
+    const category=document.getElementById('siteCategory').value.trim()||'Other';
+    const description=document.getElementById('siteDesc').value.trim();
+    const cardColor=document.getElementById('siteColor').value||'';
+    if (!name||!url) { showToast('Name aur URL zaroori hain!','error'); btn.innerHTML='<i class="fa-solid fa-cloud-arrow-up"></i> Save Data'; btn.disabled=false; return; }
+    let sublinks=[];
+    Array.from(sublinksContainer.children).forEach(row => {
+        const n=row.querySelector('.sublink-name').value.trim();
+        const u=row.querySelector('.sublink-url').value.trim();
+        if(n&&u) sublinks.push({name:n,url:u});
+    });
+    try {
+        if (editingId) {
+            const existing=allLinksData.find(i=>i.id===editingId);
+            await update(ref(db,'websites/'+editingId), {name,mainUrl:url,logo,category,description,sublinks,cardColor,isPrivate,isPinned,isStarred:!!existing?.isStarred,clickCount:existing?.clickCount||0});
+            showToast(`"${name}" update ho gaya!`,'success');
+        } else {
+            await push(ref(db,'websites'), {name,mainUrl:url,logo,category,description,sublinks,cardColor,isPrivate,isPinned,isStarred:false,clickCount:0,createdAt:Date.now()});
+            showToast(`"${name}" add ho gaya!`,'success');
+        }
+        closeModal('addModal');
+    } catch(e) { showToast('Save fail: '+e.message,'error'); }
+    finally { btn.innerHTML='<i class="fa-solid fa-cloud-arrow-up"></i> Save Data'; btn.disabled=false; }
+});
+
+// =============================================
+// VIEW MODAL
+// =============================================
+window.openViewModal = (id) => {
+    const data=allLinksData.find(d=>d.id===id);
+    if(!data) return;
+    document.getElementById('modalMaintenanceBadge').classList.add('hidden');
+    document.getElementById('viewModalTitle').innerText=data.name||'Website';
+    document.getElementById('viewModalDesc').innerText=data.description||'';
+    document.getElementById('viewModalLogo').src=data.logo||`https://www.google.com/s2/favicons?domain=${data.mainUrl}&sz=128`;
+    const mainLink=document.getElementById('viewModalMainLink');
+    mainLink.href=data.mainUrl||'#'; mainLink.dataset.id=id;
+    mainLink.onclick=()=>trackClick(id);
+    const vlc=document.getElementById('viewModalLinks');
+    vlc.innerHTML='';
+    if (data.sublinks?.length) {
+        data.sublinks.forEach(link => {
+            vlc.innerHTML+=`
+            <a href="${link.url||'#'}" target="_blank" onclick="trackClick('${id}')"
+               class="flex items-center justify-between p-3 sm:p-3.5 bg-gray-900/80 hover:bg-gray-700 border border-gray-600 rounded-xl transition group text-sm sm:text-base">
+                <span class="font-medium text-blue-100 flex items-center gap-2 truncate">
+                    <i class="fa-solid fa-link text-gray-500 text-sm"></i> ${link.name||'Link'}
+                </span>
+                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-blue-400 transition transform group-hover:translate-x-1 flex-shrink-0"></i>
+            </a>`;
         });
+    } else { vlc.innerHTML='<p class="text-gray-500 text-center py-6 text-sm">No direct links added.</p>'; }
+    openModal('viewModal');
+};
 
-        window.toggleStar = async (id) => {
-            const item = allLinksData.find(link => link.id === id);
-            if(item) {
-                try { await update(ref(db, 'websites/' + id), { isStarred: !item.isStarred }); } 
-                catch(error) { alert("Error updating star status: " + error.message); }
+// =============================================
+// 🆕 RECENTLY ADDED SECTION
+// =============================================
+function renderRecentSection() {
+    const sevenDaysAgo = Date.now() - 7*24*60*60*1000;
+    const recent = allLinksData
+        .filter(d => d.createdAt && d.createdAt > sevenDaysAgo && (!d.isPrivate || isAdmin))
+        .sort((a,b) => b.createdAt - a.createdAt)
+        .slice(0,8);
+    const section = document.getElementById('recentSection');
+    const container = document.getElementById('recentLinks');
+    if (!recent.length) { section.classList.add('hidden'); return; }
+    section.classList.remove('hidden');
+    container.innerHTML = recent.map(d => `
+        <button onclick="openViewModal('${d.id}')"
+            class="flex-shrink-0 flex flex-col items-center gap-1.5 p-3 rounded-xl border border-gray-700 bg-gray-800/50 hover:border-blue-500/50 hover:bg-gray-700/50 transition cursor-pointer" style="min-width:80px;max-width:80px">
+            <div class="w-10 h-10 bg-white/90 rounded-xl flex items-center justify-center p-1.5 overflow-hidden flex-shrink-0">
+                <img src="${d.logo||`https://www.google.com/s2/favicons?domain=${d.mainUrl}&sz=64`}" alt="${d.name}" class="w-full h-full object-contain" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(d.name||'?')}&background=334155&color=fff&size=64'">
+            </div>
+            <span class="text-xs text-center font-medium" style="color:var(--text);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;width:100%">${d.name||'Unknown'}</span>
+            <span class="text-[9px]" style="color:var(--text2);">${timeAgo(d.createdAt)}</span>
+        </button>`).join('');
+}
+
+function timeAgo(ts) {
+    const diff = Date.now()-ts;
+    const h = Math.floor(diff/3600000);
+    const d = Math.floor(diff/86400000);
+    if (h < 1) return 'Just now';
+    if (h < 24) return `${h}h ago`;
+    return `${d}d ago`;
+}
+
+// =============================================
+// CATEGORY FILTERS
+// =============================================
+function renderCategoryFilters() {
+    const visibleData = allLinksData.filter(d => !d.isPrivate || isAdmin);
+    const uniqueCats = [...new Set(visibleData.map(d => String(d.category||'Other')))].sort();
+    categoryFiltersContainer.innerHTML='';
+    ['All',...uniqueCats].forEach(cat => {
+        const count=cat==='All'?visibleData.length:visibleData.filter(d=>(d.category||'Other')===cat).length;
+        const btn=document.createElement('button');
+        btn.innerHTML=`${cat} <span class="ml-1 text-xs opacity-60">${count}</span>`;
+        btn.className=activeCategory===cat
+            ?'snap-start px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition bg-blue-600 text-white shadow-lg scale-105'
+            :'snap-start px-5 py-2 rounded-full text-sm font-medium whitespace-nowrap transition bg-gray-800 border border-gray-600 text-gray-300 hover:bg-gray-700';
+        btn.onclick=()=>{ activeCategory=cat; renderCategoryFilters(); renderLinks(); };
+        categoryFiltersContainer.appendChild(btn);
+    });
+}
+
+// =============================================
+// LOADER
+// =============================================
+function hideLoaderShowGrid() {
+    loadingMsg.classList.add('hidden');
+    linksContainer.classList.remove('hidden'); linksContainer.classList.add('grid');
+}
+function showLoaderError(msg) {
+    loadingMsg.classList.remove('hidden'); linksContainer.classList.add('hidden');
+    document.getElementById('spinnerIcon').className="fa-solid fa-triangle-exclamation text-red-500 text-4xl mb-4";
+    document.getElementById('loadingText').innerHTML=msg;
+}
+
+// Cache
+try {
+    const cached=localStorage.getItem('myLinkHubCache');
+    if(cached){ const p=JSON.parse(cached); if(Array.isArray(p)){ allLinksData=p; hideLoaderShowGrid(); renderCategoryFilters(); renderLinks(); renderRecentSection(); } }
+} catch(e){ localStorage.removeItem('myLinkHubCache'); }
+
+// Firebase
+onValue(ref(db,'websites'), (snapshot) => {
+    try {
+        allLinksData=[];
+        const data=snapshot.val();
+        if(data&&typeof data==='object') Object.keys(data).forEach(key=>allLinksData.push({id:key,...data[key]}));
+        try{ localStorage.setItem('myLinkHubCache',JSON.stringify(allLinksData)); }catch(e){}
+        hideLoaderShowGrid(); renderCategoryFilters(); renderLinks(); renderRecentSection();
+    } catch(e){ showLoaderError('Data processing failed.'); }
+}, (e) => showLoaderError('Database Connection Failed!'));
+
+searchInput.addEventListener('input', renderLinks);
+searchFilter.addEventListener('change', renderLinks);
+
+// =============================================
+// DRAG & DROP
+// =============================================
+let dragSrcId=null;
+function setupDragDrop(card,id) {
+    card.setAttribute('draggable',true);
+    card.addEventListener('dragstart',e=>{ dragSrcId=id; card.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
+    card.addEventListener('dragend',()=>card.classList.remove('dragging','drag-over'));
+    card.addEventListener('dragover',e=>{ e.preventDefault(); card.classList.add('drag-over'); });
+    card.addEventListener('dragleave',()=>card.classList.remove('drag-over'));
+    card.addEventListener('drop',async e=>{
+        e.preventDefault(); card.classList.remove('drag-over');
+        if(dragSrcId&&dragSrcId!==id){
+            const s=allLinksData.find(l=>l.id===dragSrcId), d=allLinksData.find(l=>l.id===id);
+            if(s&&d){
+                try{
+                    await update(ref(db,'websites/'+dragSrcId),{order:d.order??allLinksData.indexOf(d)});
+                    await update(ref(db,'websites/'+id),{order:s.order??allLinksData.indexOf(s)});
+                    showToast('Order save ho gaya!','success');
+                }catch(e){ showToast('Reorder fail','error'); }
             }
-        };
+        }
+        dragSrcId=null;
+    });
+}
 
-        window.editLink = (id) => {
-            const item = allLinksData.find(link => link.id === id);
-            if(item) {
-                editingId = id;
-                document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-400"></i> Edit Website';
-                document.getElementById('siteName').value = item.name || '';
-                document.getElementById('siteUrl').value = item.mainUrl || '';
-                document.getElementById('siteCategory').value = item.category || 'Other';
-                document.getElementById('siteLogo').value = item.logo || '';
-                sublinksContainer.innerHTML = '';
-                if(item.sublinks && Array.isArray(item.sublinks) && item.sublinks.length > 0) {
-                    item.sublinks.forEach(link => createSublinkRow(link.name, link.url));
-                } else { createSublinkRow(); }
-                openModal('addModal');
-            }
-        };
+// =============================================
+// 🆕 ADVANCED SEARCH (name, url, desc, tag, sublinks)
+// =============================================
+function matchesSearch(data, query, filterType) {
+    if (!query) return true;
+    const q = query.toLowerCase();
+    const name = (data.name||'').toLowerCase();
+    const url = (data.mainUrl||'').toLowerCase();
+    const desc = (data.description||'').toLowerCase();
+    const cat = (data.category||'').toLowerCase();
+    const subs = (data.sublinks||[]).map(s=>(s.name||'').toLowerCase()+(s.url||'').toLowerCase()).join(' ');
+    switch(filterType) {
+        case 'name': return name.includes(q);
+        case 'url':  return url.includes(q);
+        case 'desc': return desc.includes(q);
+        case 'tag':  return cat.includes(q);
+        default: return name.includes(q)||url.includes(q)||desc.includes(q)||cat.includes(q)||subs.includes(q);
+    }
+}
 
-        window.deleteLink = async (id) => {
-            if(confirm('Delete this website permanently?')) {
-                await remove(ref(db, 'websites/' + id));
-            }
-        };
+// =============================================
+// RENDER LINKS
+// =============================================
+function renderLinks() {
+    const query=searchInput.value.toLowerCase().trim();
+    const filterType=searchFilter.value;
+    linksContainer.innerHTML='';
 
-        document.getElementById('saveLinkBtn').addEventListener('click', async () => {
-            const btn = document.getElementById('saveLinkBtn');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
-            btn.disabled = true;
+    let filtered=allLinksData.filter(d => {
+        if(d.isPrivate && !isAdmin) return false;
+        const catMatch=activeCategory==='All'||(d.category||'Other')===activeCategory;
+        return catMatch && matchesSearch(d,query,filterType);
+    });
 
-            const name = document.getElementById('siteName').value.trim();
-            const url = document.getElementById('siteUrl').value.trim();
-            const logo = document.getElementById('siteLogo').value.trim();
-            const category = document.getElementById('siteCategory').value.trim() || 'Other';
-            
-            if(!name || !url) {
-                alert("Website Name and Main URL are required!");
-                btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Save Data';
-                btn.disabled = false;
-                return;
-            }
+    // Sort: pinned first, then starred, then order, then clicks
+    filtered.sort((a,b)=>{
+        if((b.isPinned?1:0)!==(a.isPinned?1:0)) return (b.isPinned?1:0)-(a.isPinned?1:0);
+        if((b.isStarred?1:0)!==(a.isStarred?1:0)) return (b.isStarred?1:0)-(a.isStarred?1:0);
+        const ao=a.order??9999, bo=b.order??9999;
+        if(ao!==bo) return ao-bo;
+        return (b.clickCount||0)-(a.clickCount||0);
+    });
 
-            let sublinks = [];
-            const rows = sublinksContainer.children;
-            for(let i = 0; i < rows.length; i++) {
-                const subName = rows[i].querySelector('.sublink-name').value.trim();
-                const subUrl = rows[i].querySelector('.sublink-url').value.trim();
-                if(subName && subUrl) sublinks.push({ name: subName, url: subUrl });
-            }
+    if(!allLinksData.length){
+        linksContainer.innerHTML=`<div class="col-span-full flex flex-col items-center justify-center mt-20 text-gray-400"><i class="fa-solid fa-box-open text-6xl mb-4 text-gray-600"></i><p class="text-xl">Your Hub is empty.</p>${isAdmin?`<p class="text-sm mt-2 text-green-500">Click 'Add Link' to start!</p>`:''}</div>`;
+        return;
+    }
+    if(!filtered.length){
+        linksContainer.innerHTML=`<div class="col-span-full flex flex-col items-center justify-center mt-10 text-gray-400"><i class="fa-solid fa-magnifying-glass text-4xl mb-3 text-gray-600"></i><p>Koi result nahi mila</p><p class="text-sm mt-1 opacity-60">Try: name, URL, description, ya category se search karo</p></div>`;
+        return;
+    }
 
-            try {
-                if(editingId) {
-                    const existingItem = allLinksData.find(item => item.id === editingId);
-                    const isStarred = existingItem ? !!existingItem.isStarred : false;
-                    await update(ref(db, 'websites/' + editingId), { name, mainUrl: url, logo, category, sublinks, isStarred });
-                } else {
-                    await push(ref(db, 'websites'), { name, mainUrl: url, logo, category, sublinks, isStarred: false, createdAt: Date.now() });
-                }
-                closeModal('addModal');
-            } catch (error) { alert("Data Save Failed! Error: " + error.message); } 
-            finally {
-                btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Save Data';
-                btn.disabled = false;
-            }
+    filtered.forEach(data => {
+        const card=document.createElement('div');
+        card.id=`card-wrapper-${data.id}`;
+        const accentColor=data.cardColor||'';
+        const borderStyle=accentColor?`border-color:${accentColor}40;box-shadow:0 0 0 1px ${accentColor}30,0 4px 30px rgba(0,0,0,0.1);`:'';
+        card.className=`glass-card rounded-2xl p-3 sm:p-4 flex flex-col relative group h-full cursor-pointer hover:border-blue-500/50 ${data.isStarred&&!accentColor?'border-yellow-500/50':accentColor?'':'border-gray-700'}`;
+        if(accentColor) card.style.cssText=borderStyle;
+
+        card.addEventListener('click',e=>{
+            if(!e.target.closest('.btn-action')) window.openViewModal(data.id);
         });
+        card.addEventListener('mouseenter', e => showLinkPreview(e, data));
+        card.addEventListener('mouseleave', hideLinkPreview);
 
-        window.openViewModal = (id) => {
-            const data = allLinksData.find(d => d.id === id);
-            if(!data) return;
+        const safeLogo=data.logo||`https://www.google.com/s2/favicons?domain=${data.mainUrl}&sz=128`;
+        const clicks=data.clickCount||0;
+
+        // Color accent top bar
+        const colorBar=accentColor?`<div style="position:absolute;top:0;left:0;right:0;height:3px;background:${accentColor};border-radius:1rem 1rem 0 0;"></div>`:'';
+
+        card.innerHTML=`
+            ${colorBar}
+            <div id="status-${data.id}"></div>
+            ${data.isPinned?`<div class="pin-badge"><i class="fa-solid fa-thumbtack text-[8px] mr-0.5"></i>Pinned</div>`:''}
+            ${data.isPrivate&&isAdmin?`<div class="private-badge"><i class="fa-solid fa-lock text-[8px] mr-0.5"></i>Private</div>`:''}
+            ${data.isStarred?`<div class="absolute top-3 left-2 sm:left-3 text-yellow-400 text-base drop-shadow-[0_0_8px_rgba(250,204,21,0.6)] z-10"><i class="fa-solid fa-star"></i></div>`:''}
+            ${isAdmin?`
+            <div class="admin-btns absolute top-1 right-1 sm:top-2 sm:right-2 flex gap-1.5 bg-gray-900/90 px-2 py-1.5 rounded-xl opacity-100 lg:opacity-0 group-hover:opacity-100 transition z-30 shadow-lg">
+                <button onclick="window.toggleStar('${data.id}')" class="btn-action ${data.isStarred?'text-yellow-400':'text-gray-400'} hover:text-yellow-300 p-1.5 rounded-lg transition" title="Star"><i class="fa-solid fa-star text-sm"></i></button>
+                <button onclick="window.editLink('${data.id}')" class="btn-action text-blue-400 hover:text-blue-300 p-1.5 rounded-lg transition" title="Edit"><i class="fa-solid fa-pen text-sm"></i></button>
+                <button onclick="window.deleteLink('${data.id}')" class="btn-action text-red-500 hover:text-red-400 p-1.5 rounded-lg transition" title="Delete"><i class="fa-solid fa-trash text-sm"></i></button>
+            </div>`:''}
+            ${clicks>0?`<div class="click-badge" style="${isAdmin?'right:90px':'right:6px'}"><i class="fa-solid fa-arrow-pointer text-[9px] mr-0.5"></i>${clicks}</div>`:''}
             
-            document.getElementById('modalMaintenanceBadge').classList.add('hidden');
-            document.getElementById('viewModalTitle').innerText = data.name || 'Website';
-            document.getElementById('viewModalLogo').src = data.logo || 'https://via.placeholder.com/64?text=Link';
-            document.getElementById('viewModalMainLink').href = data.mainUrl || '#';
+            <div class="flex flex-col items-center mb-2 mt-5 sm:mt-4 relative">
+                <div class="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 mb-2 sm:mb-3 bg-white/90 rounded-2xl shadow-xl flex items-center justify-center p-2.5 overflow-hidden transition transform group-hover:scale-105 z-10" ${accentColor?`style="box-shadow:0 0 0 2px ${accentColor}50,0 4px 20px rgba(0,0,0,0.2)"`:''}> 
+                    <img src="${safeLogo}" alt="${data.name||''}" loading="lazy" onerror="handleImageError(this,'${data.id}')" class="w-full h-full object-contain drop-shadow-md">
+                </div>
+                <h3 class="text-base sm:text-lg md:text-xl font-bold text-center text-white truncate w-full px-1 z-10">${data.name||'Unknown'}</h3>
+                ${data.description?`<p class="desc-text w-full px-1 mt-1">${data.description}</p>`:''}
+                <div class="absolute bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-900/80 border border-gray-600 text-gray-300 px-3 py-1 rounded-md text-[10px] sm:text-xs whitespace-nowrap">${data.category||'Other'}</div>
+            </div>
             
-            const viewLinksContainer = document.getElementById('viewModalLinks');
-            viewLinksContainer.innerHTML = '';
-            
-            if(data.sublinks && Array.isArray(data.sublinks) && data.sublinks.length > 0) {
-                data.sublinks.forEach(link => {
-                    const subName = link.name || 'Link';
-                    const subUrl = link.url || '#';
-                    viewLinksContainer.innerHTML += `
-                        <a href="${subUrl}" target="_blank" class="flex items-center justify-between p-3 sm:p-3.5 bg-gray-900/80 hover:bg-gray-700 border border-gray-600 rounded-xl transition group text-sm sm:text-base">
-                            <span class="font-medium text-blue-100 flex items-center gap-2 truncate">
-                                <i class="fa-solid fa-link text-gray-500 text-sm"></i> ${subName}
-                            </span>
-                            <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-blue-400 transition transform group-hover:translate-x-1 flex-shrink-0"></i>
-                        </a>
-                    `;
-                });
-            } else {
-                viewLinksContainer.innerHTML = '<p class="text-gray-500 text-center py-6 text-sm">No direct links added.</p>';
-            }
-            openModal('viewModal');
-        };
+            <div class="mt-auto pt-3 border-t border-gray-600/30 relative z-10">
+                <div class="w-full text-center text-sm font-medium py-2 rounded-lg transition flex justify-center items-center gap-1 sm:gap-2"
+                    style="${accentColor?`background:${accentColor}20;color:${accentColor};`:'color:#93c5fd;background:rgba(30,41,59,0.5);'} "
+                    onmouseover="${accentColor?`this.style.background='${accentColor}';this.style.color='white'`:`this.style.background='#2563eb';this.style.color='white'`}"
+                    onmouseout="${accentColor?`this.style.background='${accentColor}20';this.style.color='${accentColor}'`:`this.style.background='rgba(30,41,59,0.5)';this.style.color='#93c5fd'`}">
+                    Open Links <i class="fa-solid fa-arrow-pointer text-xs"></i>
+                </div>
+            </div>
+        `;
+        linksContainer.appendChild(card);
+        if(isAdmin) setupDragDrop(card,data.id);
+    });
+}
 
-        function renderCategoryFilters() {
-            const uniqueCategories = [...new Set(allLinksData.map(item => String(item.category || 'Other')))];
-            uniqueCategories.sort();
-            const categoriesToRender = ['All', ...uniqueCategories];
+// =============================================
+// 🆕 PWA SERVICE WORKER
+// =============================================
+if('serviceWorker' in navigator) {
+    const swCode=`
+        const CACHE='linkhub-v1';
+        self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/']))));
+        self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>new Response('Offline',{status:503})))));
+    `;
+    const blob=new Blob([swCode],{type:'application/javascript'});
+    navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
 
-            categoryFiltersContainer.innerHTML = '';
-            categoriesToRender.forEach(cat => {
-                const btn = document.createElement('button');
-                btn.innerText = cat;
-                if(activeCategory === cat) {
-                    btn.className = 'snap-start px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition bg-blue-600 text-white shadow-lg shadow-blue-900/50 scale-105';
-                } else {
-                    btn.className = 'snap-start px-5 py-2 rounded-full text-sm font-medium whitespace-nowrap transition bg-gray-800 border border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white';
-                }
-                btn.onclick = () => {
-                    activeCategory = cat;
-                    renderCategoryFilters(); 
-                    renderLinks(); 
-                };
-                categoryFiltersContainer.appendChild(btn);
-            });
-        }
-
-        function hideLoaderShowGrid() {
-            if(!loadingMsg.classList.contains('hidden')) { loadingMsg.classList.add('hidden'); }
-            if(linksContainer.classList.contains('hidden')) {
-                linksContainer.classList.remove('hidden');
-                linksContainer.classList.add('grid');
-            }
-        }
-
-        function showLoaderError(msg) {
-            loadingMsg.classList.remove('hidden');
-            linksContainer.classList.add('hidden');
-            document.getElementById('spinnerIcon').className = "fa-solid fa-triangle-exclamation text-red-500 text-4xl mb-4";
-            document.getElementById('loadingText').innerHTML = msg;
-        }
-
-        try {
-            const cachedData = localStorage.getItem('myLinkHubCache');
-            if (cachedData) {
-                const parsedData = JSON.parse(cachedData);
-                if(Array.isArray(parsedData)) {
-                    allLinksData = parsedData;
-                    hideLoaderShowGrid();
-                    renderCategoryFilters();
-                    renderLinks();
-                }
-            }
-        } catch(e) { localStorage.removeItem('myLinkHubCache'); }
-
-        onValue(ref(db, 'websites'), (snapshot) => {
-            try {
-                allLinksData = [];
-                const data = snapshot.val();
-                
-                if(data && typeof data === 'object') {
-                    Object.keys(data).forEach(key => {
-                        allLinksData.push({ id: key, ...data[key] });
-                    });
-                }
-                
-                try { localStorage.setItem('myLinkHubCache', JSON.stringify(allLinksData)); } 
-                catch(err) {} 
-                
-                hideLoaderShowGrid();
-                renderCategoryFilters();
-                renderLinks();
-            } catch(renderError) {
-                console.error(renderError);
-                showLoaderError("Data processing failed.");
-            }
-        }, (error) => {
-            console.error(error);
-            showLoaderError("Database Connection Failed!");
-        });
-
-        searchInput.addEventListener('input', renderLinks);
-
-        function renderLinks() {
-            const query = searchInput.value.toLowerCase();
-            linksContainer.innerHTML = ''; 
-            
-            let filteredData = allLinksData.filter(data => {
-                const nameStr = data.name ? String(data.name).toLowerCase() : '';
-                const categoryStr = data.category ? String(data.category) : 'Other';
-                
-                let matchesSearch = nameStr.includes(query);
-                
-                if(!matchesSearch && data.sublinks && Array.isArray(data.sublinks)) {
-                    matchesSearch = data.sublinks.some(sub => {
-                        const subName = sub.name ? String(sub.name).toLowerCase() : '';
-                        return subName.includes(query);
-                    });
-                }
-                
-                const matchesCategory = activeCategory === 'All' || categoryStr === activeCategory;
-                return matchesSearch && matchesCategory;
-            });
-
-            filteredData.sort((a, b) => {
-                const starA = a.isStarred ? 1 : 0;
-                const starB = b.isStarred ? 1 : 0;
-                return starB - starA; 
-            });
-
-            if(allLinksData.length === 0) {
-                linksContainer.innerHTML = `
-                    <div class="col-span-full flex flex-col items-center justify-center mt-10 sm:mt-20 text-gray-400">
-                        <i class="fa-solid fa-box-open text-5xl sm:text-6xl mb-4 text-gray-600 drop-shadow-lg"></i>
-                        <p class="text-lg sm:text-xl">Your Hub is empty.</p>
-                        ${isAdmin ? `<p class="text-sm mt-2 text-green-500">Click 'Add Link' to start!</p>` : ''}
-                    </div>`;
-                return;
-            }
-
-            if(filteredData.length === 0) {
-                linksContainer.innerHTML = `<p class="col-span-full text-center mt-10 text-gray-400">No links found in this category or search.</p>`;
-                return;
-            }
-            
-            filteredData.forEach(data => {
-                const card = document.createElement('div');
-                card.id = `card-wrapper-${data.id}`;
-                card.className = `glass-card rounded-2xl p-3 sm:p-4 flex flex-col relative group h-full cursor-pointer hover:border-blue-500/50 ${data.isStarred ? 'border-yellow-500/50' : 'border-gray-700'}`;
-                
-                card.addEventListener('click', (e) => {
-                    const isBtnClicked = e.target.closest('.btn-action');
-                    if (!isBtnClicked) {
-                        window.openViewModal(data.id);
-                    }
-                });
-
-                const safeName = data.name || 'Unknown';
-                const safeCategory = data.category || 'Other';
-                const safeLogo = data.logo || 'https://via.placeholder.com/64?text=Link';
-
-                const categoryBadge = `<div class="absolute bottom-14 left-1/2 transform -translate-x-1/2 bg-gray-900/80 border border-gray-600 text-gray-300 px-3 py-1 rounded-md text-[10px] sm:text-xs whitespace-nowrap">${safeCategory}</div>`;
-
-                card.innerHTML = `
-                    <div id="status-${data.id}"></div>
-                    ${data.isStarred ? `<div class="absolute top-2 left-2 sm:top-3 sm:left-3 text-yellow-400 text-base sm:text-lg drop-shadow-[0_0_8px_rgba(250,204,21,0.6)] z-10"><i class="fa-solid fa-star"></i></div>` : ''}
-
-                    ${isAdmin ? `
-                    <div class="admin-btns absolute top-1 right-1 sm:top-2 sm:right-2 flex gap-1.5 sm:gap-1 bg-gray-900/90 px-2 py-1.5 rounded-xl opacity-100 lg:opacity-0 group-hover:opacity-100 transition z-30 shadow-lg">
-                        <button onclick="window.toggleStar('${data.id}')" class="btn-action ${data.isStarred ? 'text-yellow-400' : 'text-gray-400'} hover:text-yellow-300 p-1.5 sm:p-1.5 rounded-lg transition" title="Star"><i class="fa-solid fa-star text-base sm:text-sm"></i></button>
-                        <button onclick="window.editLink('${data.id}')" class="btn-action text-blue-400 hover:text-blue-300 p-1.5 sm:p-1.5 rounded-lg transition" title="Edit"><i class="fa-solid fa-pen text-base sm:text-sm"></i></button>
-                        <button onclick="window.deleteLink('${data.id}')" class="btn-action text-red-500 hover:text-red-400 p-1.5 sm:p-1.5 rounded-lg transition" title="Delete"><i class="fa-solid fa-trash text-base sm:text-sm"></i></button>
-                    </div>
-                    ` : ''}
-                    
-                    <div class="flex flex-col items-center mb-6 mt-4 sm:mt-2 relative">
-                        <div class="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 mb-2 sm:mb-3 bg-white/90 rounded-2xl shadow-xl flex items-center justify-center p-2.5 overflow-hidden transition transform group-hover:scale-105 z-10">
-                            <img src="${safeLogo}" alt="${safeName}" loading="lazy" onerror="handleImageError(this, '${data.id}')" class="w-full h-full object-contain drop-shadow-md">
-                        </div>
-                        <h3 class="text-base sm:text-lg md:text-xl font-bold text-center text-white truncate w-full px-1 z-10">${safeName}</h3>
-                        ${categoryBadge}
-                    </div>
-                    
-                    <div class="mt-auto pt-3 sm:pt-4 border-t border-gray-600/30 relative z-10">
-                        <div class="w-full text-center text-sm text-blue-300 font-medium py-2 rounded-lg bg-gray-800/50 group-hover:bg-blue-600 group-hover:text-white transition flex justify-center items-center gap-1 sm:gap-2">
-                            <span>Open Links</span> <i class="fa-solid fa-arrow-pointer text-xs"></i>
-                        </div>
-                    </div>
-                `;
-                linksContainer.appendChild(card);
-            });
-        }
-    </script>
+</script>
 </body>
 </html>
